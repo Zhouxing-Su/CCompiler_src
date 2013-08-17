@@ -10,6 +10,15 @@ public:
     SymbolTable(void);
     virtual ~SymbolTable(void);
 
+    /**
+        push a SymbolTable into the SymbolTable::stack when
+        entering a new scope. the top of the stack will
+        always be the SymbolTable for current scope.
+        search the SymbolTable::stack from top to bottom 
+        will get SymbolTable of outter and outter scopes step by step.
+    */
+    static std::vector<SymbolTable*> stack;
+
 private:
     std::vector<Symbol*> svector;
 };
