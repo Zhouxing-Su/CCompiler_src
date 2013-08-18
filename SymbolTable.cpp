@@ -3,11 +3,9 @@
 
 std::vector<SymbolTable*> SymbolTable::stack;
 
-SymbolTable::SymbolTable(void)
-{
+SymbolTable::SymbolTable(void) {
 }
 
 
-SymbolTable::~SymbolTable(void)
-{
+SymbolTable::~SymbolTable(void) {
 }

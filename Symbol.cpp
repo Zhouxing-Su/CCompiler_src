@@ -1,48 +1,70 @@
 #include "Symbol.h"
 
+using namespace std;
+
 // class Symbol
 
-Symbol::Symbol(void)
-{
+Symbol::Symbol( const string &n ) : name(n) {
+    
 }
 
-Symbol::~Symbol(void)
-{
+Symbol::~Symbol() {
+
 }
 
 // class VarType
 
-std::vector<VarType*> VarType::stack;
+vector<VarType*> VarType::stack;
 
-VarType::VarType()
-{
+VarType::VarType( const string &n, int s, int c, vector<VarType*> ml )
+    : Symbol(n), size(s), count(c), memberList(ml) {
+
 }
 
-VarType::~VarType()
-{
+VarType::~VarType() {
+
 }
 
 // class Variable
 
-std::vector<Variable*> Variable::stack;
-std::vector<Variable*> Variable::heap;
+vector<Variable*> Variable::stack;
+vector<Variable*> Variable::heap;
 
-Variable::Variable()
-{
+Variable::Variable( const string &n, VarType* t, int a, int c )
+    : Symbol(n), type(t), addr(a), count(c) {
+
 }
 
-Variable::~Variable()
-{
+Variable::~Variable() {
+
 }
 
 // class Function
 
-std::vector<Function*> Function::list;
+vector<Function*> Function::list;
 
-Function::Function()
-{
+Function::Function( const string &n ) : Symbol(n) {
+
 }
 
-Function::~Function()
-{
+Function::~Function() {
+
+}
+
+// class Label
+
+vector<Label*> Label::list;
+char Label::nameBuf[NAME_BUF_SIZE];
+
+Label::Label( int a ) : Symbol( itoa(list.size(), nameBuf, 16 ) ), addr(a) {
+
+}
+
+
+Label::Label( const string &n, int a ) : Symbol(n), addr(a) {
+
+}
+
+Label::~Label() {
+
 }
