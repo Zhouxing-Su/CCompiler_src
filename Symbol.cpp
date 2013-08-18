@@ -53,11 +53,17 @@ Function::~Function() {
 
 // class Label
 
-vector<Label*> Label::list;
+vector<Label*> Label::stack;
 char Label::nameBuf[NAME_BUF_SIZE];
+char Label::nameFormat[8];
 
-Label::Label( int a ) : Symbol( itoa(list.size(), nameBuf, 16 ) ), addr(a) {
+void Label::initNameBuf() {
+    memset( nameBuf, '0', NAME_BUF_SIZE );
+    sprintf( nameFormat, "%%0%dh", NAME_BUF_SIZE );
+}
 
+Label::Label( int a ) : Symbol( nameBuf ), addr(a) {
+    sprintf( nameBuf, nameFormat, stack.size() );    // prepare next label name for loop structure
 }
 
 

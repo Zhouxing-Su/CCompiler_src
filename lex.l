@@ -4,6 +4,9 @@ also, stringconst do not support cross-line strings and can not recognize "xx"xx
 do not recognize enum value as constant
 */
 
+%option never-interactive
+%option nounistd
+
 digit			[0-9]
 letter		[_A-Za-z]
 

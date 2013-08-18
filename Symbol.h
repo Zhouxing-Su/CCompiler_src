@@ -1,4 +1,6 @@
 #include <cstdlib>
+#include <cstdio>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -68,6 +70,8 @@ private:
 
 class Label : public Symbol // include start address of 'for', 'while', 'do-while' and goto-label
 {
+    friend int init( int argc, char **argv );
+
 public:
     // constructor for loop structures, auto-generating names by current index of the Label::list
     // because they don't have a name assigned by programmer like goto-label
@@ -76,13 +80,16 @@ public:
     Label( const std::string &name, int addr );
     ~Label();
 
-    static std::vector<Label*> list;    // store all labels ( in current scope & cannot be global )
+    static std::vector<Label*> stack;    // store all labels ( in current scope & cannot be global )
 
 private:
     // stores a hexical address which length fits the word size of your processer
-    // e.g. a 32-bits processer may get 2*4=8 chars to express 0x00000000~0xFFFFFFFF
+    // e.g. a 32-bits processer may get 2*4=8 chars to express 00000000~FFFFFFFF
     static const int NAME_BUF_SIZE = ( ( 2*sizeof(void*) )+1 ); // one char for '\0'
     static char nameBuf[NAME_BUF_SIZE]; // used in constructor 'Label( int addr )'
+    static char nameFormat[8];          // control the generation of the prefixed zeros
+    
+    static void initNameBuf();
 
     std::string name;
     int addr;
