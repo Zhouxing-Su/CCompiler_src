@@ -18,6 +18,8 @@ int main( int argc, char **argv ) {
 
     //optimizeIntermediateCode();
 
+    //generateObjectCode();
+
     return 0;
 }
 

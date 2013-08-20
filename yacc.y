@@ -295,9 +295,9 @@ argv:			// used in function calls
 %%	// =================================
 
 void yyerror(const char *msg) {
-    fprintf( stderr, "Error: %s (line %d)\n", msg, LineCount);
+    fprintf( stderr, "Error: %s (%s[line %d])\n", FileWraper::getPath(), msg, LineCount);
 }
 
 void syntaxAnalasisLog( const char *msg, int linenoShift ) {
-    printf( "line %5d : %s\n", (LineCount + linenoShift), msg );
+    printf( "%s[line%5d]: %s\n", FileWraper::getPath(), (LineCount + linenoShift), msg );
 }
