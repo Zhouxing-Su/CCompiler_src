@@ -15,6 +15,7 @@ Symbol::~Symbol() {
 // class VarType
 
 vector<VarType*> VarType::stack;
+vector<VarType*> atomTypes;
 
 VarType::VarType( const string &n, int s, int c, vector<VarType*> ml )
     : Symbol(n), size(s), count(c), memberList(ml) {
@@ -24,6 +25,12 @@ VarType::VarType( const string &n, int s, int c, vector<VarType*> ml )
 VarType::~VarType() {
 
 }
+
+void VarType::initAtomTypes() {
+    string name;
+    vector<VarType*> memberList;
+}
+
 
 // class Variable
 

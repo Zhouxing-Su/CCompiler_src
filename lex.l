@@ -26,9 +26,10 @@ singleCharDelimiter		[\?\:\{\}\;]
 %x BLOCKCOMMENT
 
 %{
-	#include <stdlib.h>
-	#include <string.h>
+	#include <cstdlib>
+	#include <cstring>
 	#include "FileWraper.h"
+	#include "SymbolTable.h"
 	#include "yacc.tab.hpp"
 	#include "ErrorLog.h"
 	
@@ -126,6 +127,7 @@ singleCharDelimiter		[\?\:\{\}\;]
 
 
 {word}	{
+	yylval.str = yytext;
 	return ID;
 	// return DEFINED_TYPE;
 }

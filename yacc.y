@@ -10,7 +10,9 @@ do not support type modifiers such as "const" .
 */
 
 %{
-    #include <stdio.h>
+    #include <cstdio>
+	#include "SymbolTable.h"
+	#include "FileWraper.h"
     #include "yacc.tab.hpp"
 
     #define	log(msg)	syntaxAnalasisLog(msg,0)
@@ -24,7 +26,18 @@ do not support type modifiers such as "const" .
 
 // -------------------------
 
-%start program
+%union {
+	char c;
+	int i;
+	unsigned u;
+	long l;
+	short s;
+	float f;
+	double d;
+
+	char *str;
+	Symbol *sym;
+};
 
 // -------------------------
 %token KW_AUTO KW_CONST KW_EXTERN KW_REGISTER KW_STATIC KW_VOLATILE KW_TYPEDEF
@@ -55,11 +68,14 @@ do not support type modifiers such as "const" .
 %right	'!' '~' INC DEC POS NEG DEREF ADDROF SIZEOF		// '!' '~' "++" "--" '+' '-' '*' '&' "sizeof" //
 %left	ARROW '.'	'[' ']' '(' ')'	// "->"
 
+%start program
+
 %%	// =================================
 
 program:
       program	typeDefineStmt
-    | program varDeclStmt		{	log("global variable definition");	}
+    | program	varDef ';'		{	log("global variable definition");	}
+    | program	varDeclStmt		{	log("global variable declaration");	}
     | program	funcDecl
     | program	funcImplement
     |
@@ -73,7 +89,7 @@ typeDefineStmt:
       typeDefine ';'
     ;
 typeDefine:
-      KW_TYPEDEF varType ID				{	log("user type definition");	}
+      KW_TYPEDEF varDecl				{	log("user type definition");	}
     | compondTypeDef
     ;
 compondTypeDef:
@@ -82,7 +98,7 @@ compondTypeDef:
     | KW_ENUM ID {	log("enum definition");	}	 '{' enumList '}'
     ;
 varDecls:
-      varDecls varDeclStmt
+      varDecls varDecl ';'
     |
     ;
 enumList:
@@ -100,12 +116,16 @@ name:		// in variable declarations and function definition ( as '*' is with ID b
     ;
 
 varDeclStmt:
-      varDecl ';'
+      KW_EXTERN varDecl ';'
     ;
 varDecl:
-      varType varInit
-    | varDecl ',' varInit
+      varType name
+    | varDecl ',' name
     ;
+varDef:
+	  varType varInit
+	| varDef ',' varInit
+	;
 varInit:
       name
     | name '=' expr
@@ -170,7 +190,8 @@ stmt:
       block
     | expr ';'			{	log("expression");	}
     | typeDefineStmt
-    | varDeclStmt		{	log("local variable definition");	}
+	| varDeclStmt		{	log("global variable declaration");	}
+    | varDef ';'		{	log("local variable definition");	}
     | for
     | while
     | dowhile

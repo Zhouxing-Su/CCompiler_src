@@ -22,13 +22,20 @@ private:
 
 class VarType : public Symbol
 {
+    friend int init( int argc, char **argv );
+
 public:
     VarType( const std::string &name, int size, int count, std::vector<VarType*> memberList );
     ~VarType();
 
+    int create( const std::string &name, int count, std::vector<VarType*> memberList );
+
     static std::vector<VarType*> stack;     // store defined types till current scope
+    static std::vector<VarType*> atomTypes; // store atom types
 
 private:
+    static void initAtomTypes();
+
     int size;   // size in byte ( of a single element if it is an array )
     int count;  // if it is not an array, this field should be 1.
     std::vector<VarType*> memberList;
