@@ -1,4 +1,4 @@
-#include "Symbol.h"
+#include "SymbolTable.h"
 
 using namespace std;
 
@@ -15,10 +15,18 @@ Symbol::~Symbol() {
 // class VarType
 
 vector<VarType*> VarType::stack;
-vector<VarType*> atomTypes;
+vector<VarType*> VarType::atomTypes;
 
-VarType::VarType( const string &n, int s, int c, vector<VarType*> ml )
-    : Symbol(n), size(s), count(c), memberList(ml) {
+VarType::VarType( const string &n, int d, vector<int> *w, vector<VarType*> *ml )
+    : Symbol(n), depth(d), width(w), memberList(ml) {
+    size = 0;
+    for( size_t i = 0 ; i < ml->size() ; ++i ) {
+        size += (ml->at(i))->size;
+    }
+}
+
+VarType::VarType( const string &n, int s )
+    : Symbol(n), depth(0), size(s), width(NULL), memberList(NULL) {
 
 }
 
@@ -26,9 +34,31 @@ VarType::~VarType() {
 
 }
 
+int VarType::attach( SymbolTable *st ) const {
+    stack.push_back( const_cast<VarType*>(this) );
+    st->addSymbol( const_cast<VarType*>(this) );
+    return 0;
+}
+
+VarType * VarType::find( const std::string &name ) {
+    for( int i = stack.size()-1 ; i >= 0 ; --i ) {
+        if( name.compare( stack[i]->getName() ) == 0 ) {
+            return stack[i];
+        }
+    }
+    return NULL;
+}
+
 void VarType::initAtomTypes() {
-    string name;
-    vector<VarType*> memberList;
+    atomTypes.push_back( new VarType( "char", 1 ) );
+    atomTypes.push_back( new VarType( "int", WORD_LENGTH ) );
+    atomTypes.push_back( new VarType( "long", WORD_LENGTH ) );
+    atomTypes.push_back( new VarType( "short", WORD_LENGTH/2 ) );
+    atomTypes.push_back( new VarType( "float", WORD_LENGTH ) );
+    atomTypes.push_back( new VarType( "double", WORD_LENGTH*2 ) );
+    atomTypes.push_back( new VarType( "signed", WORD_LENGTH ) );
+    atomTypes.push_back( new VarType( "unsigned", WORD_LENGTH ) );
+    atomTypes.push_back( new VarType( "void", 0 ) );
 }
 
 
@@ -37,14 +67,19 @@ void VarType::initAtomTypes() {
 vector<Variable*> Variable::stack;
 vector<Variable*> Variable::heap;
 
-Variable::Variable( const string &n, VarType* t, int a, int c )
-    : Symbol(n), type(t), addr(a), count(c) {
+Variable::Variable( const string &n, VarType* t, int a )
+    : Symbol(n), type(t), addr(a) {
 
 }
 
 Variable::~Variable() {
 
 }
+
+int Variable::attach( SymbolTable *st ) const {
+    return 0;
+}
+
 
 // class Function
 
@@ -57,6 +92,11 @@ Function::Function( const string &n ) : Symbol(n) {
 Function::~Function() {
 
 }
+
+int Function::attach( SymbolTable *st ) const {
+    return 0;
+}
+
 
 // class Label
 
@@ -80,4 +120,8 @@ Label::Label( const string &n, int a ) : Symbol(n), addr(a) {
 
 Label::~Label() {
 
+}
+
+int Label::attach( SymbolTable *st ) const {
+    return 0;
 }

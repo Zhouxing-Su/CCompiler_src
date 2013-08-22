@@ -11,6 +11,7 @@ do not support type modifiers such as "const" .
 
 %{
     #include <cstdio>
+	#include <string>
 	#include "SymbolTable.h"
 	#include "FileWraper.h"
     #include "yacc.tab.hpp"
@@ -20,8 +21,8 @@ do not support type modifiers such as "const" .
     int yylex();
     void yyerror(const char *s);
     void syntaxAnalasisLog( const char *msg, int linenoShift );
-    
-    extern int LineCount;
+
+	extern int LineCount;
 %}
 
 // -------------------------
@@ -35,9 +36,21 @@ do not support type modifiers such as "const" .
 	float f;
 	double d;
 
-	char *str;
-	Symbol *sym;
+	std::string *pstr;
+	Symbol *symbol;
+	std::vector<int> *width;
+	struct name {
+		int depth;
+		std::vector<int> *width;
+		std::string *pstr;
+	} name;
 };
+
+%type <symbol> atomType
+//%type <symbol> userDefType
+%type <symbol> varDecl
+%type <symbol> varType
+%type <name> name;
 
 // -------------------------
 %token KW_AUTO KW_CONST KW_EXTERN KW_REGISTER KW_STATIC KW_VOLATILE KW_TYPEDEF
@@ -45,7 +58,7 @@ do not support type modifiers such as "const" .
 %token KW_STRUCT KW_UNION KW_ENUM
 %token KW_BREAK KW_CASE KW_CONTINUE KW_DEFAULT KW_DO KW_ELSE KW_FOR KW_GOTO KW_IF KW_RETURN KW_SWITCH KW_WHILE 
 
-%token ID
+%token <pstr> ID
 %token CONSTANT
 %token DEFINED_TYPE
 
@@ -75,7 +88,7 @@ do not support type modifiers such as "const" .
 program:
       program	typeDefineStmt
     | program	varDef ';'		{	log("global variable definition");	}
-    | program	varDeclStmt		{	log("global variable declaration");	}
+    | program	varDeclStmt
     | program	funcDecl
     | program	funcImplement
     |
@@ -89,7 +102,10 @@ typeDefineStmt:
       typeDefine ';'
     ;
 typeDefine:
-      KW_TYPEDEF varDecl				{	log("user type definition");	}
+    KW_TYPEDEF varDecl {
+		log("user type definition");
+		$2->attach( SymbolTable::getCurrentScope() );
+	}
     | compondTypeDef
     ;
 compondTypeDef:
@@ -108,18 +124,46 @@ enumList:
     
 // -------------------------
 
+stars:
+	stars '*' {
+		$<i>$ = $<i>1 + 1;
+	}
+	| {
+		$<i>$ = 0;
+	}
+	;
+
+bracket:
+	bracket '[' expr ']' {
+		$<width>1->push_back( $<i>3 );
+		$<width>$ = $<width>1;
+	}
+	| {
+		$<width>$ = new std::vector<int>();
+	}
+	;
+
 name:		// in variable declarations and function definition ( as '*' is with ID but not simple type )
-      ID
-    | '*' name
-    | name '[' expr ']'
-    | name '[' ']'
+    stars ID bracket	{
+		$$.depth = $<i>1;
+		$$.pstr = $2;
+		if( $<width>3->size() == 0 ) {
+			$$.width = NULL;
+			delete $<width>3;
+		} else {
+			$$.width = $<width>3;
+		}
+	}
     ;
 
 varDeclStmt:
-      KW_EXTERN varDecl ';'
+      KW_EXTERN varDecl ';'		{	log("global variable declaration");	}
     ;
 varDecl:
-      varType name
+    varType name {
+		$$ = new VarType( *$2.pstr, $2.depth, NULL, 
+					new std::vector<VarType*>( 1, dynamic_cast<VarType*>($1) ) );
+	}
     | varDecl ',' name
     ;
 varDef:
@@ -131,27 +175,47 @@ varInit:
     | name '=' expr
     | name '=' '{' expr '}'
     ;
-varType:
-      atomType
+varType:	// %type <symbol> varType
+    atomType {
+		$$ = $1;
+	}
     | userDefType
     ;
-userDefType:
+userDefType:	// %type <symbol> userDefType
       compondTypeDef
     | KW_STRUCT DEFINED_TYPE
     | KW_UNION DEFINED_TYPE
     | KW_ENUM DEFINED_TYPE
     | DEFINED_TYPE
     ;
-atomType:
-      KW_CHAR
-    | KW_DOUBLE
-    | KW_FLOAT
-    | KW_INT
-    | KW_LONG
-    | KW_SHORT
-    | KW_SIGNED
-    | KW_UNSIGNED
-    | KW_VOID
+atomType:	// %type <symbol> atomType
+    KW_CHAR {
+		$$ = VarType::atomTypes[VarType::AtomTypesIndex::CHAR];
+	}
+    | KW_INT {
+		$$ = VarType::atomTypes[VarType::AtomTypesIndex::INT];
+	}
+    | KW_LONG {
+		$$ = VarType::atomTypes[VarType::AtomTypesIndex::LONG];
+	}
+    | KW_SHORT {
+		$$ = VarType::atomTypes[VarType::AtomTypesIndex::SHORT];
+	}
+    | KW_FLOAT {
+		$$ = VarType::atomTypes[VarType::AtomTypesIndex::FLOAT];
+	}
+    | KW_DOUBLE {
+		$$ = VarType::atomTypes[VarType::AtomTypesIndex::DOUBLE];
+	}
+    | KW_SIGNED {
+		$$ = VarType::atomTypes[VarType::AtomTypesIndex::SIGNED];
+	}
+    | KW_UNSIGNED {
+		$$ = VarType::atomTypes[VarType::AtomTypesIndex::UNSIGNED];
+	}
+    | KW_VOID {
+		$$ = VarType::atomTypes[VarType::AtomTypesIndex::VOID];
+	}
     ;
 
 // -------------------------
@@ -190,7 +254,7 @@ stmt:
       block
     | expr ';'			{	log("expression");	}
     | typeDefineStmt
-	| varDeclStmt		{	log("global variable declaration");	}
+	| varDeclStmt
     | varDef ';'		{	log("local variable definition");	}
     | for
     | while

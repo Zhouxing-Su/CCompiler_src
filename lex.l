@@ -32,12 +32,15 @@ singleCharDelimiter		[\?\:\{\}\;]
 	#include "SymbolTable.h"
 	#include "yacc.tab.hpp"
 	#include "ErrorLog.h"
+
+	using namespace std;
 	
 	extern "C" {
 		int yywrap(void);
 	}
 
 	int LineCount = 1;
+	static std::string textbuf;
 %}
 
 %%
@@ -127,9 +130,13 @@ singleCharDelimiter		[\?\:\{\}\;]
 
 
 {word}	{
-	yylval.str = yytext;
-	return ID;
-	// return DEFINED_TYPE;
+	if( ( yylval.symbol = VarType::find( string(yytext) ) ) != NULL ) {
+		return DEFINED_TYPE;
+	} else {
+		textbuf = yytext;
+		yylval.pstr = &textbuf;
+		return ID;
+	}
 }
 
 

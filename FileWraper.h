@@ -3,10 +3,10 @@
    and make it easy for the yylex() to handle them one by one.
 */
 
-#include <cstdlib>
-
 #ifndef FILE_WRAPER_H
 #define FILE_WRAPER_H 0
+
+#include <cstdlib>
 
 class FileWraper
 {

@@ -1,7 +1,7 @@
 #include <cstdio>
 #include "FileWraper.h"
 #include "ErrorLog.h"
-#include "Symbol.h"
+#include "SymbolTable.h"
 
 int init( int argc, char **argv );
 void generateIntermediateCode();
@@ -36,6 +36,8 @@ int init( int argc, char **argv ) {
     Label::initNameBuf();
 
     VarType::initAtomTypes();
+
+    SymbolTable::initSymbolTableStack();
 
     return 0;
 }

@@ -1,8 +1,8 @@
-#include <cstdio>
-#include "FileWraper.h"
-
 #ifndef ERROR_LOG_H
 #define ERROR_LOG_H 0
+
+#include <cstdio>
+#include "FileWraper.h"
 
 class ErrorLog
 {
