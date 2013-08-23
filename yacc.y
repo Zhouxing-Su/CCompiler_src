@@ -11,56 +11,62 @@ do not support type modifiers such as "const" .
 
 %{
     #include <cstdio>
-	#include <string>
-	#include "SymbolTable.h"
-	#include "FileWraper.h"
+    #include <string>
+    #include "SymbolTable.h"
+    #include "FileWraper.h"
+    #include "ErrorLog.h"
     #include "yacc.tab.hpp"
 
-    #define	log(msg)	syntaxAnalasisLog(msg,0)
+    #define	log(msg)	ErrorLog::syntaxAnalasisLog(msg,0)
     
     int yylex();
     void yyerror(const char *s);
-    void syntaxAnalasisLog( const char *msg, int linenoShift );
 
-	extern int LineCount;
+    extern int LineCount;
 %}
 
 // -------------------------
 
 %union {
-	char c;
-	int i;
-	unsigned u;
-	long l;
-	short s;
-	float f;
-	double d;
+    char c;
+    int i;
+    unsigned u;
+    long l;
+    short s;
+    float f;
+    double d;
 
-	std::string *pstr;
-	Symbol *symbol;
-	std::vector<int> *width;
-	struct name {
-		int depth;
-		std::vector<int> *width;
-		std::string *pstr;
-	} name;
+    std::string *pstr;
+    Symbol *symbol;
+    SymbolTable *pst;
+    std::vector<int> *width;
+    struct name {
+        int depth;
+        std::vector<int> *width;
+        std::string *pstr;
+    } name;
 };
 
 %type <symbol> atomType
-//%type <symbol> userDefType
-%type <symbol> varDecl
+%type <symbol> compoundTypeDef
+%type <name> name
+%type <symbol> userDefType
+%type <pst> varDecl
+%type <pst> varDecls
 %type <symbol> varType
-%type <name> name;
 
 // -------------------------
+%token <pstr> ID
+%token CONSTANT
+%token <symbol> DEFINED_TYPE
+
 %token KW_AUTO KW_CONST KW_EXTERN KW_REGISTER KW_STATIC KW_VOLATILE KW_TYPEDEF
 %token KW_CHAR KW_DOUBLE KW_FLOAT KW_INT KW_LONG KW_SHORT KW_SIGNED KW_UNSIGNED KW_VOID
 %token KW_STRUCT KW_UNION KW_ENUM
 %token KW_BREAK KW_CASE KW_CONTINUE KW_DEFAULT KW_DO KW_ELSE KW_FOR KW_GOTO KW_IF KW_RETURN KW_SWITCH KW_WHILE 
 
-%token <pstr> ID
-%token CONSTANT
-%token DEFINED_TYPE
+// -------------------------
+%destructor {	delete $$;	} <ID>
 
 // -------------------------
 
@@ -98,137 +104,188 @@ program:
 
 // -------------------------
 
-typeDefineStmt:
+typeDefineStmt:	// done
       typeDefine ';'
     ;
-typeDefine:
+typeDefine:		// done
     KW_TYPEDEF varDecl {
-		log("user type definition");
-		$2->attach( SymbolTable::getCurrentScope() );
-	}
-    | compondTypeDef
+        log("user type definition");
+        for( int i = 0 ; i < $2->size() ; ++i ) {
+            (*$2)[i]->attach( SymbolTable::getCurrentScope() );
+        }
+        delete $2;
+    }
+    | compoundTypeDef {
+        // nothing to do
+    }
     ;
-compondTypeDef:
-      KW_STRUCT ID {	log("struct definition");	}	'{' varDecls '}'
-    | KW_UNION ID {	log("union definition");	}	'{' varDecls '}'
+compoundTypeDef:	// undone
+    KW_STRUCT ID {	log("struct definition");	}	'{' varDecls '}' {
+        $$ = new VarType( *($2), 0, VarType::CompoundLevel::STRUCT, NULL, $5 );
+        $$->attach( SymbolTable::getCurrentScope() );
+    }
+    | KW_UNION ID {	log("union definition");	}	'{' varDecls '}' {
+        $$ = new VarType( *($2), 0, VarType::CompoundLevel::UNION, NULL, $5 );
+        $$->attach( SymbolTable::getCurrentScope() );
+    }
     | KW_ENUM ID {	log("enum definition");	}	 '{' enumList '}'
     ;
-varDecls:
-      varDecls varDecl ';'
-    |
+varDecls:		// done
+    varDecls varDecl ';' {
+        $$->appendTable( $2 );
+        delete $2;
+    }
+    | varDecl ';' {
+        $$ = $1;
+    }
     ;
-enumList:
+enumList:		// undone
       ID
     | enumList ',' ID
     ;
     
 // -------------------------
 
-stars:
-	stars '*' {
-		$<i>$ = $<i>1 + 1;
-	}
-	| {
-		$<i>$ = 0;
-	}
-	;
+stars:			// done
+    stars '*' {
+        $<i>$ = $<i>1 + 1;
+    }
+    | {
+        $<i>$ = 0;
+    }
+    ;
 
-bracket:
-	bracket '[' expr ']' {
-		$<width>1->push_back( $<i>3 );
-		$<width>$ = $<width>1;
-	}
-	| {
-		$<width>$ = new std::vector<int>();
-	}
-	;
+bracket:		// done
+    bracket '[' expr ']' {
+        $<width>1->push_back( $<i>3 );
+        $<width>$ = $<width>1;
+    }
+    | {
+        $<width>$ = new std::vector<int>();
+    }
+    ;
 
-name:		// in variable declarations and function definition ( as '*' is with ID but not simple type )
+name:			// done
     stars ID bracket	{
-		$$.depth = $<i>1;
-		$$.pstr = $2;
-		if( $<width>3->size() == 0 ) {
-			$$.width = NULL;
-			delete $<width>3;
-		} else {
-			$$.width = $<width>3;
-		}
-	}
+        $$.depth = $<i>1;
+        $$.pstr = $2;
+        if( $<width>3->size() == 0 ) {
+            $$.width = NULL;
+            delete $<width>3;
+        } else {
+            $$.width = $<width>3;
+        }
+    }
     ;
 
-varDeclStmt:
-      KW_EXTERN varDecl ';'		{	log("global variable declaration");	}
+varDeclStmt:	// undone
+    KW_EXTERN varDecl ';' {
+        log("global variable declaration");
+        delete $2;
+    }
     ;
-varDecl:
+varDecl:		// done
     varType name {
-		$$ = new VarType( *$2.pstr, $2.depth, NULL, 
-					new std::vector<VarType*>( 1, dynamic_cast<VarType*>($1) ) );
-	}
-    | varDecl ',' name
+        $$ = new SymbolTable();
+        $$->addSymbol( new VarType( *($2.pstr), $2.depth, dynamic_cast<VarType*>($1)->getCompoundLevel(),
+            NULL, new SymbolTable( 1, $1 ) ) );
+    }
+    | varDecl ',' name {
+        $1->addSymbol( new VarType( *($3.pstr), $3.depth, dynamic_cast<VarType*>( (*$$)[0] )->getCompoundLevel(),
+            NULL, dynamic_cast<VarType*>( (*$$)[0] )->getMemberList() ) );
+        $$ = $1;
+    }
     ;
-varDef:
-	  varType varInit
-	| varDef ',' varInit
-	;
-varInit:
+varDef:			// undone
+      varType varInit
+    | varDef ',' varInit
+    ;
+varInit:		// undone
       name
     | name '=' expr
     | name '=' '{' expr '}'
     ;
-varType:	// %type <symbol> varType
+varType:		// done
     atomType {
-		$$ = $1;
-	}
-    | userDefType
+        $$ = $1;
+    }
+    | userDefType {
+        $$ = $1;
+    }
     ;
-userDefType:	// %type <symbol> userDefType
-      compondTypeDef
-    | KW_STRUCT DEFINED_TYPE
-    | KW_UNION DEFINED_TYPE
-    | KW_ENUM DEFINED_TYPE
-    | DEFINED_TYPE
+userDefType:	// done
+    compoundTypeDef {
+        $$ = $1;
+    }
+    | KW_STRUCT DEFINED_TYPE {
+        if( dynamic_cast<VarType*>($2)->getCompoundLevel() == VarType::CompoundLevel::STRUCT ) {
+            $$ = $2;
+        } else {
+            ErrorLog::CompoundLevelConflictError( $2->getName() , "struct" );
+            YYABORT;
+        }
+    }
+    | KW_UNION DEFINED_TYPE {
+        if( dynamic_cast<VarType*>($2)->getCompoundLevel() == VarType::CompoundLevel::UNION ) {
+            $$ = $2;
+        } else {
+            ErrorLog::CompoundLevelConflictError( $2->getName() , "union" );
+            YYABORT;
+        }
+    }
+    | KW_ENUM DEFINED_TYPE {
+        if( dynamic_cast<VarType*>($2)->getCompoundLevel() == VarType::CompoundLevel::ENUM ) {
+            $$ = $2;
+        } else {
+            ErrorLog::CompoundLevelConflictError( $2->getName() , "enum" );
+            YYABORT;
+        }
+    }
+    | DEFINED_TYPE {	// leave out 'struct'/'union'/'enum' is always ok.
+        $$ = $1;
+    }
     ;
-atomType:	// %type <symbol> atomType
+atomType:		// done
     KW_CHAR {
-		$$ = VarType::atomTypes[VarType::AtomTypesIndex::CHAR];
-	}
+        $$ = VarType::atomTypes[VarType::AtomTypesIndex::CHAR];
+    }
     | KW_INT {
-		$$ = VarType::atomTypes[VarType::AtomTypesIndex::INT];
-	}
+        $$ = VarType::atomTypes[VarType::AtomTypesIndex::INT];
+    }
     | KW_LONG {
-		$$ = VarType::atomTypes[VarType::AtomTypesIndex::LONG];
-	}
+        $$ = VarType::atomTypes[VarType::AtomTypesIndex::LONG];
+    }
     | KW_SHORT {
-		$$ = VarType::atomTypes[VarType::AtomTypesIndex::SHORT];
-	}
+        $$ = VarType::atomTypes[VarType::AtomTypesIndex::SHORT];
+    }
     | KW_FLOAT {
-		$$ = VarType::atomTypes[VarType::AtomTypesIndex::FLOAT];
-	}
+        $$ = VarType::atomTypes[VarType::AtomTypesIndex::FLOAT];
+    }
     | KW_DOUBLE {
-		$$ = VarType::atomTypes[VarType::AtomTypesIndex::DOUBLE];
-	}
+        $$ = VarType::atomTypes[VarType::AtomTypesIndex::DOUBLE];
+    }
     | KW_SIGNED {
-		$$ = VarType::atomTypes[VarType::AtomTypesIndex::SIGNED];
-	}
+        $$ = VarType::atomTypes[VarType::AtomTypesIndex::SIGNED];
+    }
     | KW_UNSIGNED {
-		$$ = VarType::atomTypes[VarType::AtomTypesIndex::UNSIGNED];
-	}
+        $$ = VarType::atomTypes[VarType::AtomTypesIndex::UNSIGNED];
+    }
     | KW_VOID {
-		$$ = VarType::atomTypes[VarType::AtomTypesIndex::VOID];
-	}
+        $$ = VarType::atomTypes[VarType::AtomTypesIndex::VOID];
+    }
     ;
 
 // -------------------------
 
-funcDecl:
+funcDecl:		// undone
     funcDef ';'	{	log("function declaration");	}
     ;
 
-funcDef:
+funcDef:		// undone
     varType name '(' argvList ')'
     ;
 
-argvList:		// used in function declarations
+argvList:		// undone		// used in function definitions
       varType name
     | argvList ',' varType name
     | KW_VOID
@@ -237,24 +294,24 @@ argvList:		// used in function declarations
 
 // -------------------------
 
-funcImplement:
-      funcDef {	syntaxAnalasisLog("function implementation", -1);	}	 block
+funcImplement:	// undone
+      funcDef {	ErrorLog::syntaxAnalasisLog("function implementation", -1);	}	 block
     ;
 
-block:
+block:			// undone
       '{' stmts '}'
     ;
 
-stmts:
+stmts:			// undone
       stmts stmt
     |
     ;
 
-stmt:
+stmt:			// undone
       block
     | expr ';'			{	log("expression");	}
     | typeDefineStmt
-	| varDeclStmt
+    | varDeclStmt
     | varDef ';'		{	log("local variable definition");	}
     | for
     | while
@@ -272,7 +329,7 @@ stmt:
     | error '}'
     ;
 
-expr:
+expr:			// undone
     // either left or right value expression
       ID
     | expr '[' expr ']'
@@ -330,42 +387,42 @@ expr:
 
 
 
-funcCall:
+funcCall:		// undone
       ID '(' expr ')' {	log("function call");	}	
     ;
 
-if:
+if:				// undone
       KW_IF '(' expr ')' stmt KW_ELSE stmt	{	log("if-else clause");	} 
     | KW_IF '(' expr ')' stmt %prec IFX {	log("if clause");	} 
     ;
     
-while:
+while:			// undone
       KW_WHILE '(' expr ')' {	log("while clause");	}	 stmt
     ;
 
-dowhile:
+dowhile:		// undone
     KW_DO stmt KW_WHILE '(' expr ')' ';' {	log("do-while clause");	}	 
     ;
 
-for:
+for:			// undone
       KW_FOR '(' forExpr ';' forExpr ';' forExpr ')' {	log("for clause");	}	 stmt
     ;
-forExpr:
+forExpr:		// undone
       expr
     | 
     ;
     
-switch:
+switch:			// undone
       KW_SWITCH '(' expr ')' {	log("switch clause");	}	'{' cases defaultCase '}'
     ;
-cases:
+cases:			// undone
       case
     | case cases
     ;
-case:
+case:			// undone
       KW_CASE CONSTANT ':' {	log("case in switch");	}	  stmts
     ;
-defaultCase:
+defaultCase:	// undone
       KW_DEFAULT ':' {	log("default case in switch");	}	  stmts
     |
     ;
@@ -380,9 +437,5 @@ argv:			// used in function calls
 %%	// =================================
 
 void yyerror(const char *msg) {
-    fprintf( stderr, "Error: %s (%s[line %d])\n", FileWraper::getPath(), msg, LineCount);
-}
-
-void syntaxAnalasisLog( const char *msg, int linenoShift ) {
-    printf( "%s[line%5d]: %s\n", FileWraper::getPath(), (LineCount + linenoShift), msg );
+    fprintf( stderr, "Error: %s (%s[line %d])\n", msg, FileWraper::getPath(), LineCount);
 }

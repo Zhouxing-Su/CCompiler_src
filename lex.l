@@ -40,7 +40,7 @@ singleCharDelimiter		[\?\:\{\}\;]
 	}
 
 	int LineCount = 1;
-	static std::string textbuf;
+	static string textbuf;
 %}
 
 %%
@@ -134,7 +134,7 @@ singleCharDelimiter		[\?\:\{\}\;]
 		return DEFINED_TYPE;
 	} else {
 		textbuf = yytext;
-		yylval.pstr = &textbuf;
+		yylval.pstr = new string( textbuf );
 		return ID;
 	}
 }
@@ -145,7 +145,7 @@ singleCharDelimiter		[\?\:\{\}\;]
 \n 	{	++LineCount;	}
 [ \t\r]	{	;	}
 
-.	{	ErrorLog::InvalidCharacherWarning( LineCount, yytext );	}
+.	{	ErrorLog::InvalidCharacherError( yytext );	}
 
 %%
 

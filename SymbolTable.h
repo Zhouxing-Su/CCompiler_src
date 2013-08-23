@@ -10,10 +10,15 @@ class SymbolTable
     friend int init( int argc, char **argv );
 
 public:
-    SymbolTable(void);
-    ~SymbolTable(void);
+    SymbolTable();
+    SymbolTable( int num, Symbol *symbol );
+    virtual ~SymbolTable();
 
-    int addSymbol( const Symbol *symbol );
+    int addSymbol( Symbol *symbol );
+    int appendTable( SymbolTable *symbolTable );
+    Symbol *operator[]( int index );
+    Symbol *at( int index );
+    int size();
 
     // return the top element of the symbol table stack
     static SymbolTable *getCurrentScope();

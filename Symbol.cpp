@@ -17,16 +17,24 @@ Symbol::~Symbol() {
 vector<VarType*> VarType::stack;
 vector<VarType*> VarType::atomTypes;
 
-VarType::VarType( const string &n, int d, vector<int> *w, vector<VarType*> *ml )
-    : Symbol(n), depth(d), width(w), memberList(ml) {
+VarType::VarType( const string &n, int d, CompoundLevel cl, vector<int> *w, SymbolTable *ml )
+    : Symbol(n), depth(d), compoundLevel(cl), width(w), memberList(ml) {
     size = 0;
-    for( size_t i = 0 ; i < ml->size() ; ++i ) {
-        size += (ml->at(i))->size;
+    if ( cl == CompoundLevel::UNION ) { // find the size of the largest one
+        for( int i = 0 ; i < ml->size() ; ++i ) {
+            if ( size < dynamic_cast<VarType*>(ml->at(i))->size ) {
+                size = dynamic_cast<VarType*>(ml->at(i))->size;
+            }
+        }
+    } else {    // calculate the sum of every elements' size
+        for( int i = 0 ; i < ml->size() ; ++i ) {
+            size += dynamic_cast<VarType*>(ml->at(i))->size;
+        }
     }
 }
 
 VarType::VarType( const string &n, int s )
-    : Symbol(n), depth(0), size(s), width(NULL), memberList(NULL) {
+    : Symbol(n), depth(0), compoundLevel(CompoundLevel::NONE), size(s), width(NULL), memberList(NULL) {
 
 }
 
@@ -39,6 +47,16 @@ int VarType::attach( SymbolTable *st ) const {
     st->addSymbol( const_cast<VarType*>(this) );
     return 0;
 }
+
+VarType::CompoundLevel VarType::getCompoundLevel() {
+    return compoundLevel;
+}
+
+
+SymbolTable * VarType::getMemberList() {
+    return memberList;
+}
+
 
 VarType * VarType::find( const std::string &name ) {
     for( int i = stack.size()-1 ; i >= 0 ; --i ) {

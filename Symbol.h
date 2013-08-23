@@ -35,15 +35,21 @@ class VarType : public Symbol
     friend int init( int argc, char **argv );
 
 public:
+    enum AtomTypesIndex { CHAR = 0, INT, LONG, SHORT, FLOAT, DOUBLE, SIGNED, UNSIGNED, VOID };
+    enum CompoundLevel { NONE, UNION, STRUCT, ENUM };
+    static const int WORD_LENGTH = sizeof(void*);
+
     // the size is auto-calculated by memberList
-    VarType( const std::string &name, int depth, 
-        std::vector<int> *width, std::vector<VarType*> *memberList );
+    VarType( const std::string &name, int depth, CompoundLevel compondLevel,
+        std::vector<int> *width, SymbolTable *memberList );
     // constructor for basic types
     VarType( const std::string &name, int size );
 
     ~VarType();
 
     virtual int attach( SymbolTable *st ) const;
+    CompoundLevel getCompoundLevel();
+    SymbolTable *getMemberList();
     
     // search the type from current scope to global scope, not include the atomTypes
     static VarType *find( const std::string &name );
@@ -51,16 +57,14 @@ public:
     static std::vector<VarType*> stack;     // store defined types till current scope
     static std::vector<VarType*> atomTypes; // store atom types
 
-    enum AtomTypesIndex { CHAR = 0, INT, LONG, SHORT, FLOAT, DOUBLE, SIGNED, UNSIGNED, VOID };
-    static const int WORD_LENGTH = sizeof(void*);
-
 private:
     // add atom types like "int" to the VarType::atomTypes
     static void initAtomTypes();
+    CompoundLevel compoundLevel;
     int size;   // size in byte ( of a single element if it is an array )
     int depth;  // a positive number indicating the depth for a pointer, else it should be 0.
     std::vector<int> *width;    // store width of every dimension for an array
-    std::vector<VarType*> *memberList;
+    SymbolTable *memberList;    // the elements are all VarType* in the memberList->svector
 };
 
 
