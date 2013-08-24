@@ -6,21 +6,24 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <typeinfo>
 
 class SymbolTable;
 
 class Symbol
 {
 public:
+    enum IDstate { OK, DUPLICATE, CONFLICT };
     //enum SymboleType { VAR, FUNC, TYPE };
 
     Symbol( const std::string &name );
     virtual ~Symbol();
 
     // attach the symbol to the stack and symbol table
-    virtual int attach( SymbolTable *st ) const = 0;
+    virtual IDstate attach( SymbolTable *st ) const = 0;
+    virtual bool isEqual( const Symbol *symbol ) const = 0;
 
-    std::string &getName() {
+    std::string getName() const{
         return name;
     }
 
@@ -39,15 +42,17 @@ public:
     enum CompoundLevel { NONE, UNION, STRUCT, ENUM };
     static const int WORD_LENGTH = sizeof(void*);
 
-    // the size is auto-calculated by memberList
-    VarType( const std::string &name, int depth, CompoundLevel compondLevel,
+    // the size is auto-calculated by memberList, auto-fix the compoundLevel by depth and width
+    VarType( const std::string &name, int depth, CompoundLevel compoundLevel,
         std::vector<int> *width, SymbolTable *memberList );
     // constructor for basic types
     VarType( const std::string &name, int size );
 
     ~VarType();
 
-    virtual int attach( SymbolTable *st ) const;
+    IDstate attach( SymbolTable *st ) const;
+    // not like the function or variable, the same type does not need the same name
+    bool isEqual( const Symbol *symbol ) const; // so the names won't be checked
     CompoundLevel getCompoundLevel();
     SymbolTable *getMemberList();
     
@@ -75,7 +80,7 @@ public:
     Variable( const std::string &name, VarType* type, int addr );
     ~Variable();
 
-    int attach( SymbolTable *st ) const;
+    IDstate attach( SymbolTable *st ) const;
 
     static std::vector<Variable*> stack;    // store loacal variables
     static std::vector<Variable*> heap;     // store global variables
@@ -91,16 +96,21 @@ private:
 class Function : public Symbol
 {
 public:
-    Function( const std::string &name );
+    // size and entry will be set according to the function body
+    Function( const std::string &name, VarType *returnType, SymbolTable *argList );
     ~Function();
 
-    int attach( SymbolTable *st ) const;
+    IDstate attach( SymbolTable *st ) const;
+    bool isEqual( const Symbol *symbol ) const;
+    
+    // search the function by name
+    static Function *find( const std::string &name );
 
-    static std::vector<Function*> list;     // store all functions ( global scope only )
+    static std::vector<Function*> stack;     // store all functions ( global scope only )
 
 private:
     VarType* returnType;
-    std::vector<Variable*> argList;
+    SymbolTable *argList;   // the elements are all VarType* in the argList->svector
     int entry;  // the start address of the function in code segment
     int size;
 };
@@ -110,14 +120,14 @@ class Label : public Symbol // include start address of 'for', 'while', 'do-whil
     friend int init( int argc, char **argv );
 
 public:
-    // constructor for loop structures, auto-generating names by current index of the Label::list
+    // constructor for loop structures, auto-generating names by current index of the Label::stack
     // because they don't have a name assigned by programmer like goto-label
     Label( int addr );  
     // constructor for goto-label
     Label( const std::string &name, int addr );
     ~Label();
 
-    int attach( SymbolTable *st ) const;
+    IDstate attach( SymbolTable *st ) const;
 
     static std::vector<Label*> stack;    // store all labels ( in current scope & cannot be global )
 

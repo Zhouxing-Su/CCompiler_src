@@ -12,7 +12,7 @@ extern int LineCount;
     Warning : 
     Log : 
 */
-class ErrorLog
+class Log
 {
 public:
     static void FileNotFoundError( const char *path ) {
@@ -20,11 +20,18 @@ public:
     }
 
     static void CompoundLevelConflictError( const std::string &name, const char *type ) {
-        fprintf( stderr, "Error: %s is not a %s (%s[line %d])\n", name.c_str(), type, FileWraper::getPath(), LineCount );
+        fprintf( stderr, "Error: %s is not a %s (%s[line %d])\n", 
+            name.c_str(), type, FileWraper::getPath(), LineCount );
     }
 
     static void InvalidCharacherError( const char *text ) {
-        fprintf( stderr, "Error: invalid characters£º%s (%s[line %d])\n", text, FileWraper::getPath(), LineCount );
+        fprintf( stderr, "Error: invalid characters£º%s (%s[line %d])\n", 
+            text, FileWraper::getPath(), LineCount );
+    }
+
+    static void ConflictPrototypesError( const std::string *name ) {
+        fprintf( stderr, "Error: the function '%s' has conflict prototypes (%s[line %d])\n", 
+            name->c_str(), FileWraper::getPath(), LineCount );
     }
 
     static void syntaxAnalasisLog( const char *msg, int linenoShift ) {

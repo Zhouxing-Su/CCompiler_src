@@ -31,7 +31,7 @@ singleCharDelimiter		[\?\:\{\}\;]
 	#include "FileWraper.h"
 	#include "SymbolTable.h"
 	#include "yacc.tab.hpp"
-	#include "ErrorLog.h"
+	#include "Log.h"
 
 	using namespace std;
 	
@@ -145,7 +145,7 @@ singleCharDelimiter		[\?\:\{\}\;]
 \n 	{	++LineCount;	}
 [ \t\r]	{	;	}
 
-.	{	ErrorLog::InvalidCharacherError( yytext );	}
+.	{	Log::InvalidCharacherError( yytext );	}
 
 %%
 
@@ -156,7 +156,7 @@ int yywrap(void)
 		return 1;
 	} else {
 		if ( NULL == freopen( path, "r", stdin ) ) {
-			ErrorLog::FileNotFoundError( FileWraper::getPath() );
+			Log::FileNotFoundError( FileWraper::getPath() );
 			return 1;
 		}
 		LineCount = 1;

@@ -1,6 +1,6 @@
 #include <cstdio>
 #include "FileWraper.h"
-#include "ErrorLog.h"
+#include "Log.h"
 #include "SymbolTable.h"
 
 int init( int argc, char **argv );
@@ -28,7 +28,7 @@ int init( int argc, char **argv ) {
     FileWraper::fw = new FileWraper( argc, argv );
 
     if ( NULL == freopen( FileWraper::getPath(), "r", stdin ) ) {
-        ErrorLog::FileNotFoundError( FileWraper::getPath() );
+        Log::FileNotFoundError( FileWraper::getPath() );
         return -1;
     }
 

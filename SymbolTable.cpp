@@ -32,7 +32,7 @@ Symbol * SymbolTable::operator[]( int index ) {
     return svector[index];
 }
 
-Symbol * SymbolTable::at( int index ) {
+Symbol * SymbolTable::at( int index ) const {
     return svector.at (index );
 }
 
@@ -41,6 +41,14 @@ int SymbolTable::size() {
     return svector.size();
 }
 
+bool SymbolTable::isEqual( SymbolTable *pst ) const {
+    for( int i = 0 ; i < pst->size() ; ++i ) {
+        if( !( this->at(i)->isEqual( pst->at(i) ) ) ) {
+            return false;
+        }
+    }
+    return true;
+}
 
 void SymbolTable::initSymbolTableStack() {
     stack.push_back( new SymbolTable() );

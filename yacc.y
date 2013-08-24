@@ -14,10 +14,10 @@ do not support type modifiers such as "const" .
     #include <string>
     #include "SymbolTable.h"
     #include "FileWraper.h"
-    #include "ErrorLog.h"
+    #include "Log.h"
     #include "yacc.tab.hpp"
 
-    #define	log(msg)	ErrorLog::syntaxAnalasisLog(msg,0)
+    #define	log(msg)	Log::syntaxAnalasisLog(msg,0)
     
     int yylex();
     void yyerror(const char *s);
@@ -47,8 +47,10 @@ do not support type modifiers such as "const" .
     } name;
 };
 
+%type <pst> argvList
 %type <symbol> atomType
 %type <symbol> compoundTypeDef
+%type <symbol> funcDef
 %type <name> name
 %type <symbol> userDefType
 %type <pst> varDecl
@@ -188,11 +190,11 @@ varDecl:		// done
     varType name {
         $$ = new SymbolTable();
         $$->addSymbol( new VarType( *($2.pstr), $2.depth, dynamic_cast<VarType*>($1)->getCompoundLevel(),
-            NULL, new SymbolTable( 1, $1 ) ) );
+            $2.width, new SymbolTable( 1, $1 ) ) );
     }
     | varDecl ',' name {
         $1->addSymbol( new VarType( *($3.pstr), $3.depth, dynamic_cast<VarType*>( (*$$)[0] )->getCompoundLevel(),
-            NULL, dynamic_cast<VarType*>( (*$$)[0] )->getMemberList() ) );
+            $3.width, dynamic_cast<VarType*>( (*$$)[0] )->getMemberList() ) );
         $$ = $1;
     }
     ;
@@ -221,7 +223,7 @@ userDefType:	// done
         if( dynamic_cast<VarType*>($2)->getCompoundLevel() == VarType::CompoundLevel::STRUCT ) {
             $$ = $2;
         } else {
-            ErrorLog::CompoundLevelConflictError( $2->getName() , "struct" );
+            Log::CompoundLevelConflictError( $2->getName() , "struct" );
             YYABORT;
         }
     }
@@ -229,7 +231,7 @@ userDefType:	// done
         if( dynamic_cast<VarType*>($2)->getCompoundLevel() == VarType::CompoundLevel::UNION ) {
             $$ = $2;
         } else {
-            ErrorLog::CompoundLevelConflictError( $2->getName() , "union" );
+            Log::CompoundLevelConflictError( $2->getName() , "union" );
             YYABORT;
         }
     }
@@ -237,7 +239,7 @@ userDefType:	// done
         if( dynamic_cast<VarType*>($2)->getCompoundLevel() == VarType::CompoundLevel::ENUM ) {
             $$ = $2;
         } else {
-            ErrorLog::CompoundLevelConflictError( $2->getName() , "enum" );
+            Log::CompoundLevelConflictError( $2->getName() , "enum" );
             YYABORT;
         }
     }
@@ -277,25 +279,46 @@ atomType:		// done
 
 // -------------------------
 
-funcDecl:		// undone
-    funcDef ';'	{	log("function declaration");	}
+funcDecl:		// nothing to be done
+    funcDef ';'	{
+        log("function declaration");
+    }
     ;
 
-funcDef:		// undone
-    varType name '(' argvList ')'
+funcDef:		// done
+    varType name '(' argvList ')' {
+        $$ = new Function( *($2.pstr), new VarType( "ret_" + *($2.pstr), $2.depth, 
+            dynamic_cast<VarType*>($1)->getCompoundLevel(), $2.width, new SymbolTable( 1, $1 ) ), $4 );
+        if( $$->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
+            Log::ConflictPrototypesError( $2.pstr );
+            YYABORT;
+        }
+    }
     ;
 
-argvList:		// undone		// used in function definitions
-      varType name
-    | argvList ',' varType name
-    | KW_VOID
-    |
+argvList:		// done		// used in function definitions
+    varType name {
+        $$ = new SymbolTable();
+        $$->addSymbol( new VarType( *($2.pstr), $2.depth, dynamic_cast<VarType*>($1)->getCompoundLevel(),
+            $2.width, new SymbolTable( 1, $1 ) ) );
+    }
+    | argvList ',' varType name {
+        $1->addSymbol( new VarType( *($4.pstr), $4.depth, dynamic_cast<VarType*>($3)->getCompoundLevel(),
+            $4.width, new SymbolTable( 1, $3 ) ) );
+        $$ = $1;
+    }
+    | KW_VOID {
+        $$ = NULL;
+    }
+    | {
+        $$ = NULL;
+    }
     ;
 
 // -------------------------
 
 funcImplement:	// undone
-      funcDef {	ErrorLog::syntaxAnalasisLog("function implementation", -1);	}	 block
+      funcDef {	Log::syntaxAnalasisLog("function implementation", -1);	}	 block
     ;
 
 block:			// undone
