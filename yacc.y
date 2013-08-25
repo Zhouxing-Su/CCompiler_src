@@ -55,6 +55,8 @@ do not support type modifiers such as "const" .
 %type <symbol> userDefType
 %type <pst> varDecl
 %type <pst> varDecls
+%type <symbol> varDef
+%type <name> varInit
 %type <symbol> varType
 
 // -------------------------
@@ -198,14 +200,36 @@ varDecl:		// done
         $$ = $1;
     }
     ;
-varDef:			// undone
-      varType varInit
-    | varDef ',' varInit
+varDef:			// done
+    varType varInit {
+        $$ = $1;
+        Variable *var = new Variable( *($2.pstr), new VarType( *($2.pstr), $2.depth, 
+            dynamic_cast<VarType*>($1)->getCompoundLevel(), $2.width, new SymbolTable( 1, $1 ) ) );
+        if( var->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
+            Log::VariableRedefinitionError( $2.pstr );
+            YYABORT;
+        }
+    }
+    | varDef ',' varInit {
+        $$ = $1;
+        Variable *var = new Variable( *($3.pstr), new VarType( *($3.pstr), $3.depth, 
+            dynamic_cast<VarType*>($1)->getCompoundLevel(), $3.width, new SymbolTable( 1, $1 ) ) );
+        if( var->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
+            Log::VariableRedefinitionError( $3.pstr );
+            YYABORT;
+        }
+    }
     ;
 varInit:		// undone
-      name
-    | name '=' expr
-    | name '=' '{' expr '}'
+    name {
+        $$ = $1;
+    }
+    | name '=' expr {
+        $$ = $1;
+    }
+    | name '=' '{' expr '}' {
+        $$ = $1;
+    }
     ;
 varType:		// done
     atomType {
@@ -347,7 +371,13 @@ stmt:			// undone
     | KW_BREAK ';'					{	log("break statement");	}
     | KW_CONTINUE ';'			{	log("continue statement");	}
     | KW_GOTO ID ';'				{	log("goto statement");	}
-    | ID ':'	/* label of "goto" */		{	log("lable of goto");	}
+    | ID ':'	/* label of "goto" */ {	
+        log("lable of goto");
+        if( ( new Label( *$1, 0 ) )->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
+            Log::ConflictLabelNameError( *$1 );
+            YYABORT;
+        }
+    }
     | error ';'
     | error '}'
     ;
@@ -420,15 +450,41 @@ if:				// undone
     ;
     
 while:			// undone
-      KW_WHILE '(' expr ')' {	log("while clause");	}	 stmt
+    KW_WHILE {
+            log("while clause");
+            Label *pl = new Label( 0 );
+            if( pl->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
+                Log::ConflictLabelNameError( pl->getName() );
+                YYABORT;
+            }
+        }
+        '(' expr ')' stmt {
+            // set addr and attach all labels created in $5 to symbol table
+        }
     ;
 
 dowhile:		// undone
-    KW_DO stmt KW_WHILE '(' expr ')' ';' {	log("do-while clause");	}	 
+    KW_DO {
+            log("do-while clause");
+            Label *pl = new Label( 0 );
+            if( pl->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
+                Log::ConflictLabelNameError( pl->getName() );
+                YYABORT;
+            }
+        }
+        stmt KW_WHILE '(' expr ')' ';'	 
     ;
 
 for:			// undone
-      KW_FOR '(' forExpr ';' forExpr ';' forExpr ')' {	log("for clause");	}	 stmt
+    KW_FOR '(' forExpr ';' {
+            log("for clause");
+            Label *pl = new Label( 0 );
+            if( pl->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
+                Log::ConflictLabelNameError( pl->getName() );
+                YYABORT;
+            }
+        }
+        forExpr ';' forExpr ')' stmt
     ;
 forExpr:		// undone
       expr

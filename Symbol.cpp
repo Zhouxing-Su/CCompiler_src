@@ -56,6 +56,7 @@ VarType::~VarType() {
 }
 
 Symbol::IDstate VarType::attach( SymbolTable *st ) const {
+    this->scope = st;
     stack.push_back( const_cast<VarType*>(this) );
     st->addSymbol( const_cast<VarType*>(this) );
     return IDstate::OK;
@@ -113,19 +114,51 @@ void VarType::initAtomTypes() {
 // class Variable
 
 vector<Variable*> Variable::stack;
-vector<Variable*> Variable::heap;
 
-Variable::Variable( const string &n, VarType* t, int a )
-    : Symbol(n), type(t), addr(a) {
-
+Variable::Variable( const string &n, VarType* t )
+    : Symbol(n), type(t) {
+    // calculate 'addr' after optimazation ?
 }
 
 Variable::~Variable() {
 
 }
 
+Variable * Variable::find( const std::string &name ) {
+    for( int i = stack.size()-1 ; i >= 0 ; --i ) {
+        if( name.compare( stack[i]->getName() ) == 0 ) {
+            return stack[i];
+        }
+    }
+    return NULL;
+}
+
 Symbol::IDstate Variable::attach( SymbolTable *st ) const {
-    return IDstate::OK;
+    Variable *pf = find( this->getName() );
+    this->scope = st;
+    if( pf == NULL ) {
+        stack.push_back( const_cast<Variable*>(this) );
+        st->addSymbol( const_cast<Variable*>(this) );
+        return IDstate::OK;
+    } else if( !( this->isSameScope( pf ) ) ) {
+        stack.push_back( const_cast<Variable*>(this) );
+        st->addSymbol( const_cast<Variable*>(this) );
+        return IDstate::OVERRIDE;
+    } else {
+        return IDstate::CONFLICT;
+    }
+}
+
+bool Variable::isEqual( const Symbol *symbol ) const {
+    if( typeid(*symbol) == typeid(*this) ) {
+        const Variable *var = dynamic_cast<const Variable*>(symbol);
+        bool ret = true;
+        ret &= ( this->getName() == var->getName() );
+        ret &= ( this->type->isEqual( var->type ) ); // type can not be NULL
+        return ret;
+    } else {
+        return false;
+    }
 }
 
 
@@ -144,16 +177,20 @@ Function::~Function() {
 
 Symbol::IDstate Function::attach( SymbolTable *st ) const {
     Function *pf = find( this->getName() );
+    this->scope = st;
     if( pf == NULL ) {
         stack.push_back( const_cast<Function*>(this) );
         st->addSymbol( const_cast<Function*>(this) );
         return IDstate::OK;
+    } else if( !( this->isSameScope( pf ) ) ) {
+        stack.push_back( const_cast<Function*>(this) );
+        st->addSymbol( const_cast<Function*>(this) );
+        return IDstate::OVERRIDE;
     } else if( pf->isEqual( this ) ) {
         return IDstate::DUPLICATE;
     } else {
         return IDstate::CONFLICT;
     }
-
 }
 
 bool Function::isEqual( const Symbol *symbol ) const {
@@ -184,16 +221,15 @@ Function * Function::find( const std::string &name ) {
 // class Label
 
 vector<Label*> Label::stack;
-char Label::nameBuf[NAME_BUF_SIZE];
-char Label::nameFormat[8];
+const std::string Label::autoNamePrefix("CC_AUTO_GEN_LABEL");
+string Label::autoName("CC_AUTO_GEN_LABEL0");
+int Label::loopCount(0);
 
-void Label::initNameBuf() {
-    memset( nameBuf, '0', NAME_BUF_SIZE );
-    sprintf( nameFormat, "%%0%dh", NAME_BUF_SIZE );
-}
-
-Label::Label( int a ) : Symbol( nameBuf ), addr(a) {
-    sprintf( nameBuf, nameFormat, stack.size() );    // prepare next label name for loop structure
+Label::Label( int a ) : Symbol( autoName ), addr(a) {
+    // prepare next label name for loop structure
+    stringstream ss( autoNamePrefix );
+    ss << ++loopCount;
+    autoName = ss.str();
 }
 
 
@@ -206,5 +242,26 @@ Label::~Label() {
 }
 
 Symbol::IDstate Label::attach( SymbolTable *st ) const {
-    return IDstate::OK;
+    Label *label = find( this->getName() );
+    this->scope = st;
+    if( label == NULL ) {
+        stack.push_back( const_cast<Label*>(this) );
+        st->addSymbol( const_cast<Label*>(this) );
+        return IDstate::OK;
+    } else if( !( this->isSameScope( label ) ) ) {
+        stack.push_back( const_cast<Label*>(this) );
+        st->addSymbol( const_cast<Label*>(this) );
+        return IDstate::OVERRIDE;
+    } else {    // a label can be specified by name and scope, so isEqual() call is not needed
+        return IDstate::CONFLICT;
+    }
+}
+
+Label * Label::find( const std::string &name ) {
+    for( int i = stack.size()-1 ; i >= 0 ; --i ) {
+        if( name.compare( stack[i]->getName() ) == 0 ) {
+            return stack[i];
+        }
+    }
+    return NULL;
 }

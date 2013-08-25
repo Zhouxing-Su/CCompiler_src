@@ -7,31 +7,39 @@
 #include <string>
 #include <vector>
 #include <typeinfo>
+#include <sstream>
 
 class SymbolTable;
 
 class Symbol
 {
 public:
-    enum IDstate { OK, DUPLICATE, CONFLICT };
-    //enum SymboleType { VAR, FUNC, TYPE };
+    enum IDstate { OK, DUPLICATE, OVERRIDE, CONFLICT }; // only CONFLICT is a bad state
 
     Symbol( const std::string &name );
     virtual ~Symbol();
 
     // attach the symbol to the stack and symbol table
     virtual IDstate attach( SymbolTable *st ) const = 0;
-    virtual bool isEqual( const Symbol *symbol ) const = 0;
+    virtual bool isEqual( const Symbol *symbol ) const {
+        return ( name == symbol->name );
+    }
 
-    std::string getName() const{
+    bool isSameScope( const Symbol *symbol ) const {
+        return ( this->scope == symbol->scope );
+    }
+
+    std::string getName() const {
         return name;
     }
 
+protected:
+    mutable SymbolTable *scope; // be set when attached to a symbol table
 
 private:
     std::string name;
-    //SymboleType type;
 };
+
 
 class VarType : public Symbol
 {
@@ -57,7 +65,7 @@ public:
     SymbolTable *getMemberList();
     
     // search the type from current scope to global scope, not include the atomTypes
-    static VarType *find( const std::string &name );
+    static VarType *find( const std::string &name );    // find only by name
 
     static std::vector<VarType*> stack;     // store defined types till current scope
     static std::vector<VarType*> atomTypes; // store atom types
@@ -73,25 +81,26 @@ private:
 };
 
 
-
 class Variable : public Symbol
 {
 public:
-    Variable( const std::string &name, VarType* type, int addr );
+    Variable( const std::string &name, VarType* type );
     ~Variable();
 
     IDstate attach( SymbolTable *st ) const;
+    bool isEqual( const Symbol *symbol ) const;
 
-    static std::vector<Variable*> stack;    // store loacal variables
-    static std::vector<Variable*> heap;     // store global variables
+    static Variable *find( const std::string &name );    // find only by name
+
+    static std::vector<Variable*> stack;    // store global or loacal variables
 
 private:
     VarType* type;
     //isGlobal; // distinguish whether its storage on stack or data segment
-    int addr;  // shift of the start address in data segment or stack segment from the base ( but not the top of the stack )
-    //int size; // this field is replaced because it can be found in its type
-    //int count;  // if it is not an array, this field should be 1.
+    int addr;  // shift of the start address in data segment or stack segment from the base 
+               // ( but not the top of the stack )
 };
+
 
 class Function : public Symbol
 {
@@ -103,8 +112,7 @@ public:
     IDstate attach( SymbolTable *st ) const;
     bool isEqual( const Symbol *symbol ) const;
     
-    // search the function by name
-    static Function *find( const std::string &name );
+    static Function *find( const std::string &name );    // find only by name
 
     static std::vector<Function*> stack;     // store all functions ( global scope only )
 
@@ -115,8 +123,9 @@ private:
     int size;
 };
 
-class Label : public Symbol // include start address of 'for', 'while', 'do-while' and goto-label
-{
+
+class Label : public Symbol // include start address of 'for', 'while', 'do-while', 'case', 'default' and goto-label
+{                           // and the address of the first instruction after loops, function calls and 'if-else'
     friend int init( int argc, char **argv );
 
 public:
@@ -128,20 +137,15 @@ public:
     ~Label();
 
     IDstate attach( SymbolTable *st ) const;
+    static Label *find( const std::string &name );    // find only by name
 
     static std::vector<Label*> stack;    // store all labels ( in current scope & cannot be global )
 
 private:
-    // stores a hexical address which length fits the word size of your processer
-    // e.g. a 32-bits processer may get 2*4=8 chars to express 00000000~FFFFFFFF
-    static const int NAME_BUF_SIZE = ( ( 2*VarType::WORD_LENGTH )+1 ); // one char for '\0'
-    static char nameBuf[NAME_BUF_SIZE]; // used in constructor 'Label( int addr )'
-    static char nameFormat[8];          // control the generation of the prefixed zeros
-    
-    // set Label::nameBuf to all '0' and set Label::nameFormat according to NAME_BUF_SIZE
-    static void initNameBuf();
+    static const std::string autoNamePrefix;
+    static std::string autoName;    // used in constructor 'Label( int addr )'
+    static int loopCount;
 
-    std::string name;
     int addr;
 };
 

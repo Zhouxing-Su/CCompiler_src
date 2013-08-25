@@ -26,17 +26,13 @@ int main( int argc, char **argv ) {
 int init( int argc, char **argv ) {
     // link the file path to FileWraper
     FileWraper::fw = new FileWraper( argc, argv );
-
     if ( NULL == freopen( FileWraper::getPath(), "r", stdin ) ) {
         Log::FileNotFoundError( FileWraper::getPath() );
         return -1;
     }
 
     // initializtion about the major data structure
-    Label::initNameBuf();
-
     VarType::initAtomTypes();
-
     SymbolTable::initSymbolTableStack();
 
     return 0;

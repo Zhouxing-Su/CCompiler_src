@@ -34,6 +34,16 @@ public:
             name->c_str(), FileWraper::getPath(), LineCount );
     }
 
+    static void ConflictLabelNameError( const std::string &name ) {
+        fprintf( stderr, "Error: the label name '%s' has been used (%s[line %d])\n", 
+            name.c_str(), FileWraper::getPath(), LineCount );
+    }
+
+    static void VariableRedefinitionError( const std::string *name ) {
+        fprintf( stderr, "Error: the variable '%s' has been defined in current scope (%s[line %d])\n", 
+            name->c_str(), FileWraper::getPath(), LineCount );
+    }
+
     static void syntaxAnalasisLog( const char *msg, int linenoShift ) {
         printf( "%s[line%5d]: %s\n", FileWraper::getPath(), (LineCount + linenoShift), msg );
     }
