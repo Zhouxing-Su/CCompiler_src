@@ -52,7 +52,11 @@ VarType::VarType( const string &n, int s )
 }
 
 VarType::~VarType() {
-
+    delete width;
+    delete memberList;
+    if( stack.size() != 0 && this == stack.back() ) {
+        stack.pop_back();
+    }
 }
 
 Symbol::IDstate VarType::attach( SymbolTable *st ) const {
@@ -121,7 +125,10 @@ Variable::Variable( const string &n, VarType* t )
 }
 
 Variable::~Variable() {
-
+    delete type;
+    if( stack.size() != 0 && this == stack.back() ) {
+        stack.pop_back();
+    }
 }
 
 Variable * Variable::find( const std::string &name ) {
@@ -172,7 +179,11 @@ Function::Function( const string &n, VarType *rt, SymbolTable *al )
 }
 
 Function::~Function() {
-
+    delete returnType;
+    delete argList;
+    if( stack.size() != 0 && this == stack.back() ) {
+        stack.pop_back();
+    }
 }
 
 Symbol::IDstate Function::attach( SymbolTable *st ) const {
@@ -238,7 +249,9 @@ Label::Label( const string &n, int a ) : Symbol(n), addr(a) {
 }
 
 Label::~Label() {
-
+    if( stack.size() != 0 && this == stack.back() ) {
+        stack.pop_back();
+    }
 }
 
 Symbol::IDstate Label::attach( SymbolTable *st ) const {

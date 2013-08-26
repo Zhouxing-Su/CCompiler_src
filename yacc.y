@@ -346,7 +346,12 @@ funcImplement:	// undone
     ;
 
 block:			// undone
-      '{' stmts '}'
+    '{' {
+            SymbolTable::enterNewScope();
+        }
+        stmts '}' {
+            SymbolTable::exitCurrentScope();
+        }
     ;
 
 stmts:			// undone

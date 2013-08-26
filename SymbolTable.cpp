@@ -12,6 +12,9 @@ SymbolTable::SymbolTable( int num, Symbol *symbol )
 }
 
 SymbolTable::~SymbolTable(void) {
+    for( int i = 0 ; i < svector.size() ; ++i ) {
+        delete svector[i];
+    }
 }
 
 int SymbolTable::addSymbol( Symbol *sym ) {
@@ -36,7 +39,6 @@ Symbol * SymbolTable::at( int index ) const {
     return svector.at (index );
 }
 
-
 int SymbolTable::size() {
     return svector.size();
 }
@@ -52,6 +54,15 @@ bool SymbolTable::isEqual( SymbolTable *pst ) const {
 
 void SymbolTable::initSymbolTableStack() {
     stack.push_back( new SymbolTable() );
+}
+
+void SymbolTable::enterNewScope() {
+    stack.push_back( new SymbolTable() );
+}
+
+void SymbolTable::exitCurrentScope() {
+    delete stack.back();
+    stack.pop_back();
 }
 
 SymbolTable * SymbolTable::getCurrentScope() {

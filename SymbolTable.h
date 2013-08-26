@@ -21,6 +21,10 @@ public:
     bool isEqual( SymbolTable *pst ) const; // no NULL pointer checking
     int size();
 
+    // push an empty SymbolTable into the stack
+    static void enterNewScope();
+    // pop the top SymbolTable and all Symbol in it
+    static void exitCurrentScope();
     // return the top element of the symbol table stack
     static SymbolTable *getCurrentScope();
 
