@@ -342,7 +342,12 @@ argvList:		// done		// used in function definitions
 // -------------------------
 
 funcImplement:	// undone
-      funcDef {	Log::syntaxAnalasisLog("function implementation", -1);	}	 block
+    funcDef {
+        Log::syntaxAnalasisLog("function implementation", -1);
+    }
+    block {
+        // pop the (CS) and PC register ( pushed in funcCall )
+    }
     ;
 
 block:			// undone
@@ -371,11 +376,21 @@ stmt:			// undone
     | if
     | switch
     | ';'					{	log("empty statement");	}	
-    | KW_RETURN expr ';'		{	log("return statement");	}
-    | KW_RETURN ';'				{	log("return statement");	}
-    | KW_BREAK ';'					{	log("break statement");	}
-    | KW_CONTINUE ';'			{	log("continue statement");	}
-    | KW_GOTO ID ';'				{	log("goto statement");	}
+    | KW_RETURN expr ';' {
+        log("return statement");
+    }
+    | KW_RETURN ';' {
+        log("return statement");
+    }
+    | KW_BREAK ';' {
+        log("break statement");
+    }
+    | KW_CONTINUE ';' {
+        log("continue statement");
+    }
+    | KW_GOTO ID ';' {
+        log("goto statement");
+    }
     | ID ':'	/* label of "goto" */ {	
         log("lable of goto");
         if( ( new Label( *$1, 0 ) )->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
@@ -446,7 +461,10 @@ expr:			// undone
 
 
 funcCall:		// undone
-      ID '(' expr ')' {	log("function call");	}	
+    ID '(' expr ')' {
+        log("function call");
+        // push the (CS) and PC register
+    }
     ;
 
 if:				// undone
