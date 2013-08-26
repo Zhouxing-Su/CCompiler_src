@@ -16,7 +16,7 @@ public:
 
     int addSymbol( Symbol *symbol );
     int appendTable( SymbolTable *symbolTable );
-    Symbol *operator[]( int index );
+    Symbol* &operator[]( int index );
     Symbol *at( int index ) const;
     bool isEqual( SymbolTable *pst ) const; // no NULL pointer checking
     int size();

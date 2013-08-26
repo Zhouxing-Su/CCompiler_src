@@ -116,8 +116,9 @@ typeDefine:		// done
         log("user type definition");
         for( int i = 0 ; i < $2->size() ; ++i ) {
             (*$2)[i]->attach( SymbolTable::getCurrentScope() );
+            (*$2)[i] = NULL;
         }
-        free( $2 );		// do not use 'delete'! or the 'VarType' contained in will be deleted either.
+        delete $2;
     }
     | compoundTypeDef {
         // nothing to do
@@ -137,7 +138,7 @@ compoundTypeDef:	// undone
 varDecls:		// done
     varDecls varDecl ';' {
         $$->appendTable( $2 );
-        free( $2 );		// do not use 'delete'! or the 'VarType' contained in will be deleted either.
+        delete $2;
     }
     | varDecl ';' {
         $$ = $1;

@@ -25,13 +25,14 @@ int SymbolTable::addSymbol( Symbol *sym ) {
 int SymbolTable::appendTable( SymbolTable *st ) {
     for( int i = 0 ; i < st->size() ; ++i ) {
         this->svector.push_back( (*st)[i] );
+        (*st)[i] = NULL;
     }
     
     return 0;
 }
 
 
-Symbol * SymbolTable::operator[]( int index ) {
+Symbol* & SymbolTable::operator[]( int index ) {
     return svector[index];
 }
 
