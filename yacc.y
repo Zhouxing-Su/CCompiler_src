@@ -117,7 +117,7 @@ typeDefine:		// done
         for( int i = 0 ; i < $2->size() ; ++i ) {
             (*$2)[i]->attach( SymbolTable::getCurrentScope() );
         }
-        delete $2;
+        free( $2 );		// do not use 'delete'! or the 'VarType' contained in will be deleted either.
     }
     | compoundTypeDef {
         // nothing to do
@@ -137,7 +137,7 @@ compoundTypeDef:	// undone
 varDecls:		// done
     varDecls varDecl ';' {
         $$->appendTable( $2 );
-        delete $2;
+        free( $2 );		// do not use 'delete'! or the 'VarType' contained in will be deleted either.
     }
     | varDecl ';' {
         $$ = $1;

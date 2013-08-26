@@ -53,7 +53,7 @@ VarType::VarType( const string &n, int s )
 
 VarType::~VarType() {
     delete width;
-    delete memberList;
+    // delete memberList;   // they will be defined types and be deleted later
     if( stack.size() != 0 && this == stack.back() ) {
         stack.pop_back();
     }

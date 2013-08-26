@@ -53,7 +53,7 @@ public:
     // the size is auto-calculated by memberList, auto-fix the compoundLevel by depth and width
     VarType( const std::string &name, int depth, CompoundLevel compoundLevel,
         std::vector<int> *width, SymbolTable *memberList );
-    // constructor for basic types
+    // constructor for atom types
     VarType( const std::string &name, int size );
 
     ~VarType();

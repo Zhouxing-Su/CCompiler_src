@@ -12,8 +12,8 @@ SymbolTable::SymbolTable( int num, Symbol *symbol )
 }
 
 SymbolTable::~SymbolTable(void) {
-    for( int i = 0 ; i < svector.size() ; ++i ) {
-        delete svector[i];
+    for( int i = svector.size() ; i> 0 ; ) {
+        delete svector[--i];
     }
 }
 
