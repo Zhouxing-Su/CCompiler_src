@@ -84,7 +84,8 @@ private:
 class Variable : public Symbol
 {
 public:
-    Variable( const std::string &name, VarType* type );
+    enum Qualifier { AUTO, CONST, VOLATILE, CONST_VOLATILE };
+    Variable( const std::string &name, VarType* type, Qualifier qualifier=Qualifier::AUTO );
     ~Variable();
 
     IDstate attach( SymbolTable *st ) const;
@@ -96,6 +97,7 @@ public:
 
 private:
     VarType* type;
+    Qualifier qualifier;
     //isGlobal; // distinguish whether its storage on stack or data segment
     int addr;  // shift of the start address in data segment or stack segment from the base 
                // ( but not the top of the stack )

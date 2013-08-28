@@ -119,8 +119,8 @@ void VarType::initAtomTypes() {
 
 vector<Variable*> Variable::stack;
 
-Variable::Variable( const string &n, VarType* t )
-    : Symbol(n), type(t) {
+Variable::Variable( const string &n, VarType* t, Qualifier q )
+    : Symbol(n), type(t), qualifier(q) {
     // calculate 'addr' after optimazation ?
 }
 
