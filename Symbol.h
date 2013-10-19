@@ -40,13 +40,13 @@ private:
     std::string name;
 };
 
-
 class VarType : public Symbol
 {
     friend int init( int argc, char **argv );
 
 public:
-    enum AtomTypesIndex { CHAR = 0, INT, LONG, SHORT, FLOAT, DOUBLE, SIGNED, UNSIGNED, VOID };
+    enum ExprType { VAR, CHARACTER, INTEGER, U_INTEGER, REAL, STRING };
+    enum AtomTypesIndex { USER_TYPE = -1, CHAR = 0, INT, LONG, SHORT, FLOAT, DOUBLE, SIGNED, UNSIGNED, VOID };
     enum CompoundLevel { NONE, UNION, STRUCT, ENUM };
     static const int WORD_LENGTH = sizeof(void*);
 
@@ -54,7 +54,7 @@ public:
     VarType( const std::string &name, int depth, CompoundLevel compoundLevel,
         std::vector<int> *width, SymbolTable *memberList );
     // constructor for atom types
-    VarType( const std::string &name, int size );
+    VarType( const std::string &name, int size, AtomTypesIndex atomType );
 
     ~VarType();
 
@@ -63,7 +63,11 @@ public:
     bool isEqual( const Symbol *symbol ) const; // so the names won't be checked
     CompoundLevel getCompoundLevel();
     SymbolTable *getMemberList();
+    int getPointerDepth() const;
+
+    const AtomTypesIndex atomType;
     
+    static bool atomType2ExprType( AtomTypesIndex atomType, ExprType &exprType );
     // search the type from current scope to global scope, not include the atomTypes
     static VarType *find( const std::string &name );    // find only by name
 
@@ -73,6 +77,7 @@ public:
 private:
     // add atom types like "int" to the VarType::atomTypes
     static void initAtomTypes();
+
     CompoundLevel compoundLevel;
     int size;   // size in byte ( of a single element if it is an array )
     int depth;  // a positive number indicating the depth for a pointer, else it should be 0.
@@ -85,6 +90,20 @@ class Variable : public Symbol
 {
 public:
     enum Qualifier { AUTO, CONST, VOLATILE, CONST_VOLATILE };
+    typedef struct Expression {
+        std::string *name;  // for temporary variables
+        VarType::ExprType type;
+        enum Mutablity { LVALUE, RVALUE } mutablity;
+        Variable *pvar;
+        union {
+            char c;
+            long i;
+            unsigned long u;
+            double d;
+            std::string *s;
+        } value;
+    } Expression;
+
     Variable( const std::string &name, VarType* type, Qualifier qualifier=Qualifier::AUTO );
     ~Variable();
 
@@ -92,6 +111,7 @@ public:
     bool isEqual( const Symbol *symbol ) const;
 
     static Variable *find( const std::string &name );    // find only by name
+    static bool isCompatConv( Expression source, Expression target );
 
     static std::vector<Variable*> stack;    // store global or loacal variables
 
@@ -139,7 +159,7 @@ public:
     ~Label();
 
     IDstate attach( SymbolTable *st ) const;
-    static Label *find( const std::string &name );    // find only by name
+    static Label *find( const std::string &name );    // find only in current scope by name
 
     static std::vector<Label*> stack;    // store all labels ( in current scope & cannot be global )
 

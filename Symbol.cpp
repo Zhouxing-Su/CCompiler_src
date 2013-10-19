@@ -18,7 +18,7 @@ vector<VarType*> VarType::stack;
 vector<VarType*> VarType::atomTypes;
 
 VarType::VarType( const string &n, int d, CompoundLevel cl, vector<int> *w, SymbolTable *ml )
-    : Symbol(n), depth(d), compoundLevel(cl), width(w), memberList(ml) {
+    : Symbol(n), depth(d), compoundLevel(cl), width(w), memberList(ml), atomType(AtomTypesIndex::USER_TYPE) {
     int factor = 1;
     if( width != NULL ) {
         for( size_t i = 0 ; i < width->size() ; ++i ) {
@@ -46,8 +46,9 @@ VarType::VarType( const string &n, int d, CompoundLevel cl, vector<int> *w, Symb
     size *= factor;    
 }
 
-VarType::VarType( const string &n, int s )
-    : Symbol(n), depth(0), compoundLevel(CompoundLevel::NONE), size(s), width(NULL), memberList(NULL) {
+VarType::VarType( const string &n, int s, AtomTypesIndex a )
+    : Symbol(n), depth(0), compoundLevel(CompoundLevel::NONE), size(s), 
+        width(NULL), memberList(NULL), atomType(a) {
 
 }
 
@@ -92,6 +93,33 @@ SymbolTable * VarType::getMemberList() {
     return memberList;
 }
 
+int VarType::getPointerDepth() const {
+    return depth;
+}
+
+// Pointers will always be reguarded as USER_DEFINED_TYPE and won't be converted
+bool VarType::atomType2ExprType( AtomTypesIndex atomType, ExprType &exprType ) {
+    switch( atomType ) {
+        case VarType::AtomTypesIndex::CHAR:
+            exprType = ExprType::CHARACTER;
+            break;
+        case VarType::AtomTypesIndex::INT:
+        case VarType::AtomTypesIndex::SHORT:
+        case VarType::AtomTypesIndex::SIGNED:
+        case VarType::AtomTypesIndex::LONG:
+            exprType = ExprType::INTEGER;
+            break;
+        case VarType::AtomTypesIndex::UNSIGNED:
+            exprType = ExprType::U_INTEGER;
+            break;
+        case VarType::AtomTypesIndex::FLOAT:
+        case VarType::AtomTypesIndex::DOUBLE:
+            exprType = ExprType::REAL;
+        default:
+            return false;
+    }
+    return true;
+}
 
 VarType * VarType::find( const std::string &name ) {
     for( int i = stack.size()-1 ; i >= 0 ; --i ) {
@@ -103,17 +131,16 @@ VarType * VarType::find( const std::string &name ) {
 }
 
 void VarType::initAtomTypes() {
-    atomTypes.push_back( new VarType( "char", 1 ) );
-    atomTypes.push_back( new VarType( "int", WORD_LENGTH ) );
-    atomTypes.push_back( new VarType( "long", WORD_LENGTH ) );
-    atomTypes.push_back( new VarType( "short", WORD_LENGTH/2 ) );
-    atomTypes.push_back( new VarType( "float", WORD_LENGTH ) );
-    atomTypes.push_back( new VarType( "double", WORD_LENGTH*2 ) );
-    atomTypes.push_back( new VarType( "signed", WORD_LENGTH ) );
-    atomTypes.push_back( new VarType( "unsigned", WORD_LENGTH ) );
-    atomTypes.push_back( new VarType( "void", 0 ) );
+    atomTypes.push_back( new VarType( "char", 1, AtomTypesIndex::CHAR ) );
+    atomTypes.push_back( new VarType( "int", WORD_LENGTH, AtomTypesIndex::INT ) );
+    atomTypes.push_back( new VarType( "long", WORD_LENGTH, AtomTypesIndex::LONG ) );
+    atomTypes.push_back( new VarType( "short", WORD_LENGTH/2, AtomTypesIndex::SHORT ) );
+    atomTypes.push_back( new VarType( "float", WORD_LENGTH, AtomTypesIndex::FLOAT ) );
+    atomTypes.push_back( new VarType( "double", WORD_LENGTH*2, AtomTypesIndex::DOUBLE ) );
+    atomTypes.push_back( new VarType( "signed", WORD_LENGTH, AtomTypesIndex::SIGNED ) );
+    atomTypes.push_back( new VarType( "unsigned", WORD_LENGTH, AtomTypesIndex::UNSIGNED ) );
+    atomTypes.push_back( new VarType( "void", 0, AtomTypesIndex::VOID ) );
 }
-
 
 // class Variable
 
@@ -139,6 +166,63 @@ Variable * Variable::find( const std::string &name ) {
     }
     return NULL;
 }
+
+bool Variable::isCompatConv( Expression s, Expression t ) {
+    int pointerCount = 0;
+    if( s.type == VarType::ExprType::VAR ) {
+        VarType *pvt = s.pvar->type;
+        // cast to atom type. if it is compound type, then it is not a compatible convert
+        for( ; pvt->getMemberList() != NULL; pvt = dynamic_cast<VarType*>( pvt->getMemberList()->at(0) ) ) {
+            if( pvt->getPointerDepth() > 0 ) {
+                pointerCount &= 1;
+                break;
+            } else if( pvt->getCompoundLevel() != VarType::CompoundLevel::NONE ) {
+                return false;
+            }
+        }
+        VarType::atomType2ExprType( pvt->atomType, s.type );
+    }
+
+    if( t.type == VarType::ExprType::VAR ) {
+        VarType *pvt = t.pvar->type;
+        // cast to atom type. if it is compound type, then it is not a compatible convert
+        for( ; pvt->getMemberList() != NULL; pvt = dynamic_cast<VarType*>( pvt->getMemberList()->at(0) ) ) {
+            if( pvt->getPointerDepth() > 0 ) {
+                pointerCount &= 2;
+                break;
+            } else if( pvt->getCompoundLevel() != VarType::CompoundLevel::NONE ) {
+                return false;
+            }
+        }
+        VarType::atomType2ExprType( pvt->atomType, t.type );
+    }
+
+    if( s.type == VarType::ExprType::STRING || t.type == VarType::ExprType::STRING ) {
+        return false;
+    } else if( s.type == t.type ) {
+        if( s.type != VarType::ExprType::VAR || s.pvar->type->isEqual( t.pvar->type ) ) {
+            return true;
+        } else {
+            return false;
+        }
+    } else if( s.type == VarType::ExprType::CHARACTER ) {
+        s.type = VarType::ExprType::INTEGER;
+        return isCompatConv( s, t );
+    } else if( s.type == VarType::ExprType::INTEGER ) {
+        s.type = VarType::ExprType::U_INTEGER;
+        return isCompatConv( s, t );
+    } else if( s.type == VarType::ExprType::U_INTEGER ) {
+        s.type = VarType::ExprType::REAL;
+        return isCompatConv( s, t );
+    } else if( s.type == VarType::ExprType::REAL ) {
+        return false;
+    } else if( t.type == VarType::ExprType::VAR && s.type != VarType::ExprType::REAL ) {
+        return true;    // if $t is a VAR, then it can only be a pointer and can operate with integer
+    } else {
+        return false;
+    }
+}
+
 
 Symbol::IDstate Variable::attach( SymbolTable *st ) const {
     Variable *pf = find( this->getName() );
@@ -271,7 +355,7 @@ Symbol::IDstate Label::attach( SymbolTable *st ) const {
 }
 
 Label * Label::find( const std::string &name ) {
-    for( int i = stack.size()-1 ; i >= 0 ; --i ) {
+    for( int i = stack.size()-1 ; i >= 0 && stack[i]->scope == SymbolTable::getCurrentScope() ; --i ) {
         if( name.compare( stack[i]->getName() ) == 0 ) {
             return stack[i];
         }

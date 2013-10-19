@@ -28,13 +28,7 @@ do not support type modifiers such as "const" .
 // -------------------------
 
 %union {
-    char c;
     int i;
-    unsigned u;
-    long l;
-    short s;
-    float f;
-    double d;
 
     std::string *pstr;
     Symbol *symbol;
@@ -45,13 +39,17 @@ do not support type modifiers such as "const" .
         std::vector<int> *width;
         std::string *pstr;
     } name;
+    Variable::Expression expr;
 };
 
 %type <pst> argvList
 %type <symbol> atomType
+%type <width> bracket
 %type <symbol> compoundTypeDef
+%type <expr> expr
 %type <symbol> funcDef
 %type <name> name
+%type <i> stars
 %type <symbol> userDefType
 %type <pst> varDecl
 %type <pst> varDecls
@@ -61,7 +59,8 @@ do not support type modifiers such as "const" .
 
 // -------------------------
 %token <pstr> ID
-%token CONSTANT
+%token <expr> VARIABLE
+%token <expr> CONSTANT
 %token <symbol> DEFINED_TYPE
 
 %token KW_AUTO KW_CONST KW_EXTERN KW_REGISTER KW_STATIC KW_VOLATILE KW_TYPEDEF
@@ -152,32 +151,32 @@ enumList:		// undone
 
 stars:			// done
     stars '*' {
-        $<i>$ = $<i>1 + 1;
+        $$ = $1 + 1;
     }
     | {
-        $<i>$ = 0;
+        $$ = 0;
     }
     ;
 
 bracket:		// done
     bracket '[' expr ']' {
-        $<width>1->push_back( $<i>3 );
-        $<width>$ = $<width>1;
+        $1->push_back( $<i>3 );
+        $$ = $1;
     }
     | {
-        $<width>$ = new std::vector<int>();
+        $$ = new std::vector<int>();
     }
     ;
 
 name:			// done
     stars ID bracket	{
-        $$.depth = $<i>1;
+        $$.depth = $1;
         $$.pstr = $2;
-        if( $<width>3->size() == 0 ) {
+        if( $3->size() == 0 ) {
             $$.width = NULL;
-            delete $<width>3;
+            delete $3;
         } else {
-            $$.width = $<width>3;
+            $$.width = $3;
         }
     }
     ;
@@ -404,7 +403,9 @@ stmt:			// undone
 
 expr:			// undone
     // either left or right value expression
-      ID
+    VARIABLE {
+        $$ = $1;
+    }
     | expr '[' expr ']'
     | '*' expr %prec DEREF
     | expr ARROW expr
@@ -425,7 +426,9 @@ expr:			// undone
     | INC expr
     | DEC expr
     // right value expression
-    | CONSTANT
+    | CONSTANT {
+        $$ = $1;
+    }
     | SIZEOF expr
     | SIZEOF '(' varType ')'
     | funcCall
@@ -445,7 +448,20 @@ expr:			// undone
     | expr GE expr
     | expr SHL expr
     | expr SHR expr
-    | expr '+' expr
+    | expr '+' expr {
+        if( Variable::isCompatConv( $1, $3 ) == true ) {
+            $$.type = $3.type;
+            $$.mutablity = RVALUE;
+            
+        } else if ( Variable::isCompatConv( $3, $1 ) == true ) {
+            $$.type = $1.type;
+            $$.mutablity = RVALUE;
+
+        } else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+        }
+    }
     | expr '-' expr
     | expr '*' expr
     | expr '/' expr

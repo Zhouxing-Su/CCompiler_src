@@ -44,6 +44,11 @@ public:
             name->c_str(), FileWraper::getPath(), LineCount );
     }
 
+    static void IncompatibleTypeError() {
+        fprintf( stderr, "Error: the expression has incompatible operands (%s[line %d])\n", 
+            FileWraper::getPath(), LineCount );
+    }
+
     static void syntaxAnalasisLog( const char *msg, int linenoShift ) {
         printf( "%s[line%5d]: %s\n", FileWraper::getPath(), (LineCount + linenoShift), msg );
     }

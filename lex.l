@@ -1,6 +1,4 @@
 /*
-stringconst and (charconst?) did not consider the escape sequences such as \n and \"
-also, stringconst do not support cross-line strings and can not recognize "xx"xx" as an error
 do not recognize enum value as constant
 */
 
@@ -10,13 +8,15 @@ do not recognize enum value as constant
 digit			[0-9]
 letter		[_A-Za-z]
 
-numconst		{digit}*\.?{digit}*
-stringconst	\".*\"
-charconst		(\'(.|\\.)\')
+octconst        (0)([0-7]+)
+hexconst        (0x)([a-fA-F0-9]+)
+intconst		{digit}+
+floatconst      {digit}*\.?{digit}*
+stringconst     (\"([^"\\\n]|(\\(['"\?\\abfnrtv]|[0-7]{1,3}|x[a-fA-F0-9]+)))*\"[ \t\v\n\f]*)+
+charconst		"'"([^'\\\n]|(\\(['\"\?\\abfnrtv]|[0-7]{1,3}|x[a-fA-F0-9]+)))+"'"
 
 PreprocessStatment		^#.*
 word			{letter}({letter}|{digit})*
-constant	({numconst}|{stringconst}|{charconst})
 singleCharToken		({singleCharOperator}|{singleCharDelimiter})
 
 singleCharOperator	[~!%^&*\-+=<>/()\,\[\]]
@@ -59,8 +59,54 @@ singleCharDelimiter		[\?\:\{\}\;]
 
 
 
-
-{constant}	{	return CONSTANT;	}
+octconst    {
+    yylvalue.expr.name = NULL;
+    yylvalue.expr.type = VarType::ExprType::INTEGER;
+    yylvalue.expr.mutablity = Variable::Expression::Mutablity::RVALUE;
+    yylvalue.expr.pvar = NULL;
+    sscanf( yytext, "%o", &yylvalue.expr.value.i );
+    return CONSTANT;
+}
+hexconst    {
+    yylvalue.expr.name = NULL;
+    yylvalue.expr.type = VarType::ExprType::INTEGER;
+    yylvalue.expr.mutablity = Variable::Expression::Mutablity::RVALUE;
+    yylvalue.expr.pvar = NULL;
+    sscanf( yytext, "%h", &yylvalue.expr.value.i );
+    return CONSTANT;
+}
+intconst    {
+    yylvalue.expr.name = NULL;
+    yylvalue.expr.type = VarType::ExprType::INTEGER;
+    yylvalue.expr.mutablity = Variable::Expression::Mutablity::RVALUE;
+    yylvalue.expr.pvar = NULL;
+    sscanf( yytext, "%i", &yylvalue.expr.value.i );
+    return CONSTANT;
+}
+floatconst    {
+    yylvalue.expr.name = NULL;
+    yylvalue.expr.type = VarType::ExprType::REAL;
+    yylvalue.expr.mutablity = Variable::Expression::Mutablity::RVALUE;
+    yylvalue.expr.pvar = NULL;
+    sscanf( yytext, "%lf", &yylvalue.expr.value.d );
+    return CONSTANT;
+}
+stringconst    {
+    yylvalue.expr.name = NULL;
+    yylvalue.expr.type = VarType::ExprType::STRING;
+    yylvalue.expr.mutablity = Variable::Expression::Mutablity::RVALUE;
+    yylvalue.expr.pvar = NULL;
+    yylvalue.expr.value.s = new std::string( yytext );
+    return CONSTANT;
+}
+charconst    {
+    yylvalue.expr.name = NULL;
+    yylvalue.expr.type = VarType::ExprType::CHARACTER;
+    yylvalue.expr.mutablity = Variable::Expression::Mutablity::RVALUE;
+    yylvalue.expr.pvar = NULL;
+    yylvalue.expr.value.c = *yytext;
+    return CONSTANT;
+}
 
 
 
@@ -132,7 +178,12 @@ singleCharDelimiter		[\?\:\{\}\;]
 {word}	{
 	if( ( yylval.symbol = VarType::find( string(yytext) ) ) != NULL ) {
 		return DEFINED_TYPE;
-	} else {
+	} else if ( ( yylval.expr.pvar = Variable::find( string(yytext) ) ) != NULL ) {
+        yylval.expr.name = NULL;
+        yylval.expr.type = VarType::ExprType::VAR;
+        yylval.expr.Mutablity = Variable::Expression::Mutablity::LVALUE;
+        return VARIABLE;
+    } else {
 		textbuf = yytext;
 		yylval.pstr = new string( textbuf );
 		return ID;
