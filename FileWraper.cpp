@@ -1,9 +1,9 @@
 #include "FileWraper.h"
 
-FileWraper::FileWraper( int argc, char **argv ) : curFileIndex(0), count(argc-1) {
+FileWraper::FileWraper( int argc, char **argv ) : curFileIndex(0), count(argc) {
 	path = (char **)malloc( sizeof(char *) * count);
 	for( int i = 0 ; i < count ; ++i ) {
-		path[i] = argv[i+1];
+		path[i] = argv[i];
 	}
 }
 

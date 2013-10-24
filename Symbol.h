@@ -8,12 +8,14 @@
 #include <vector>
 #include <typeinfo>
 #include <sstream>
+#include <cassert>
 
 class SymbolTable;
 
 class Symbol
 {
 public:
+    static const int MaxNameLen = 260;
     enum IDstate { OK, DUPLICATE, OVERRIDE, CONFLICT }; // only CONFLICT is a bad state
 
     Symbol( const std::string &name );
@@ -50,6 +52,7 @@ public:
     enum CompoundLevel { NONE, UNION, STRUCT, ENUM };
     static const int WORD_LENGTH = sizeof(void*);
 
+    VarType( const VarType& vartype );
     // the size is auto-calculated by memberList, auto-fix the compoundLevel by depth and width
     VarType( const std::string &name, int depth, CompoundLevel compoundLevel,
         std::vector<int> *width, SymbolTable *memberList );
@@ -89,19 +92,21 @@ private:
 class Variable : public Symbol
 {
 public:
-    enum Qualifier { AUTO, CONST, VOLATILE, CONST_VOLATILE };
+    typedef enum Qualifier { AUTO, CONST, VOLATILE, CONST_VOLATILE } Qualifier;
+    typedef enum Mutablity { LVALUE, RVALUE } Mutablity;
     typedef struct Expression {
         std::string *name;  // for temporary variables
         VarType::ExprType type;
-        enum Mutablity { LVALUE, RVALUE } mutablity;
+        Mutablity mutablity;
         Variable *pvar;
-        union {
+        typedef union {
             char c;
             long i;
             unsigned long u;
             double d;
             std::string *s;
-        } value;
+        } Value;
+        Value value;
     } Expression;
 
     Variable( const std::string &name, VarType* type, Qualifier qualifier=Qualifier::AUTO );
@@ -109,6 +114,9 @@ public:
 
     IDstate attach( SymbolTable *st ) const;
     bool isEqual( const Symbol *symbol ) const;
+    std::string getTypeName() const;
+
+    const VarType& getType() const;
 
     static Variable *find( const std::string &name );    // find only by name
     static bool isCompatConv( Expression source, Expression target );

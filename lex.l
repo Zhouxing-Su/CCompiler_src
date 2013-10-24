@@ -58,53 +58,52 @@ singleCharDelimiter		[\?\:\{\}\;]
 {PreprocessStatment}	{	;/* return PREP_STMT; */	}
 
 
-
-octconst    {
-    yylvalue.expr.name = NULL;
-    yylvalue.expr.type = VarType::ExprType::INTEGER;
-    yylvalue.expr.mutablity = Variable::Expression::Mutablity::RVALUE;
-    yylvalue.expr.pvar = NULL;
-    sscanf( yytext, "%o", &yylvalue.expr.value.i );
+{octconst}    {
+    yylval.expr.name = NULL;
+    yylval.expr.type = VarType::ExprType::INTEGER;
+    yylval.expr.mutablity = Variable::Mutablity::RVALUE;
+    yylval.expr.pvar = new Variable( std::string(), VarType::atomTypes[VarType::AtomTypesIndex::UNSIGNED] );
+    sscanf( yytext, "%o", &yylval.expr.value.i );
     return CONSTANT;
 }
-hexconst    {
-    yylvalue.expr.name = NULL;
-    yylvalue.expr.type = VarType::ExprType::INTEGER;
-    yylvalue.expr.mutablity = Variable::Expression::Mutablity::RVALUE;
-    yylvalue.expr.pvar = NULL;
-    sscanf( yytext, "%h", &yylvalue.expr.value.i );
+{hexconst}    {
+    yylval.expr.name = NULL;
+    yylval.expr.type = VarType::ExprType::INTEGER;
+    yylval.expr.mutablity = Variable::Mutablity::RVALUE;
+    yylval.expr.pvar = new Variable( std::string(), VarType::atomTypes[VarType::AtomTypesIndex::UNSIGNED] );
+    sscanf( yytext, "%h", &yylval.expr.value.i );
     return CONSTANT;
 }
-intconst    {
-    yylvalue.expr.name = NULL;
-    yylvalue.expr.type = VarType::ExprType::INTEGER;
-    yylvalue.expr.mutablity = Variable::Expression::Mutablity::RVALUE;
-    yylvalue.expr.pvar = NULL;
-    sscanf( yytext, "%i", &yylvalue.expr.value.i );
+{intconst}    {
+    yylval.expr.name = NULL;
+    yylval.expr.type = VarType::ExprType::INTEGER;
+    yylval.expr.mutablity = Variable::Mutablity::RVALUE;
+    yylval.expr.pvar = new Variable( std::string(), VarType::atomTypes[VarType::AtomTypesIndex::INT] );
+    sscanf( yytext, "%i", &yylval.expr.value.i );
     return CONSTANT;
 }
-floatconst    {
-    yylvalue.expr.name = NULL;
-    yylvalue.expr.type = VarType::ExprType::REAL;
-    yylvalue.expr.mutablity = Variable::Expression::Mutablity::RVALUE;
-    yylvalue.expr.pvar = NULL;
-    sscanf( yytext, "%lf", &yylvalue.expr.value.d );
+{floatconst}    {
+    yylval.expr.name = NULL;
+    yylval.expr.type = VarType::ExprType::REAL;
+    yylval.expr.mutablity = Variable::Mutablity::RVALUE;
+    yylval.expr.pvar = new Variable( std::string(), VarType::atomTypes[VarType::AtomTypesIndex::DOUBLE] );
+    sscanf( yytext, "%lf", &yylval.expr.value.d );
     return CONSTANT;
 }
-stringconst    {
-    yylvalue.expr.name = NULL;
-    yylvalue.expr.type = VarType::ExprType::STRING;
-    yylvalue.expr.mutablity = Variable::Expression::Mutablity::RVALUE;
-    yylvalue.expr.pvar = NULL;
-    yylvalue.expr.value.s = new std::string( yytext );
+{stringconst}    {
+    yylval.expr.name = NULL;
+    yylval.expr.type = VarType::ExprType::STRING;
+    yylval.expr.mutablity = Variable::Mutablity::RVALUE;
+    yylval.expr.pvar = NULL;
+    yylval.expr.value.s = new std::string( yytext );
     return CONSTANT;
 }
-charconst    {
-    yylvalue.expr.name = NULL;
-    yylvalue.expr.type = VarType::ExprType::CHARACTER;
-    yylvalue.expr.mutablity = Variable::Expression::Mutablity::RVALUE;
-    yylvalue.expr.pvar = NULL;
-    yylvalue.expr.value.c = *yytext;
+{charconst}    {
+    yylval.expr.name = NULL;
+    yylval.expr.type = VarType::ExprType::CHARACTER;
+    yylval.expr.mutablity = Variable::Mutablity::RVALUE;
+    yylval.expr.pvar = new Variable( std::string(), VarType::atomTypes[VarType::AtomTypesIndex::CHAR] );
+    yylval.expr.value.c = *yytext;
     return CONSTANT;
 }
 
@@ -181,7 +180,7 @@ charconst    {
 	} else if ( ( yylval.expr.pvar = Variable::find( string(yytext) ) ) != NULL ) {
         yylval.expr.name = NULL;
         yylval.expr.type = VarType::ExprType::VAR;
-        yylval.expr.Mutablity = Variable::Expression::Mutablity::LVALUE;
+        yylval.expr.mutablity = Variable::Mutablity::LVALUE;
         return VARIABLE;
     } else {
 		textbuf = yytext;

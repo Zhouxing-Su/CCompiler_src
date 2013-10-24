@@ -14,6 +14,7 @@ do not support type modifiers such as "const" .
     #include <string>
     #include "SymbolTable.h"
     #include "FileWraper.h"
+	#include "CodeGenerator.h"
     #include "Log.h"
     #include "yacc.tab.hpp"
 
@@ -131,7 +132,9 @@ compoundTypeDef:	// undone
         $$ = new VarType( *($2), 0, VarType::CompoundLevel::UNION, NULL, $5 );
         $$->attach( SymbolTable::getCurrentScope() );
     }
-    | KW_ENUM ID {	log("enum definition");	}	 '{' enumList '}'
+    | KW_ENUM ID {	log("enum definition");	}	 '{' enumList '}' {
+		// currently ignore this syntax
+	}
     ;
 varDecls:		// done
     varDecls varDecl ';' {
@@ -202,7 +205,7 @@ varDecl:		// done
 varDef:			// done
     varType varInit {
         $$ = $1;
-        Variable *var = new Variable( *($2.pstr), new VarType( *($2.pstr), $2.depth, 
+        Variable *var = new Variable( *($2.pstr), new VarType( $1->getName(), $2.depth, 
             dynamic_cast<VarType*>($1)->getCompoundLevel(), $2.width, new SymbolTable( 1, $1 ) ) );
         if( var->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
             Log::VariableRedefinitionError( $2.pstr );
@@ -211,7 +214,7 @@ varDef:			// done
     }
     | varDef ',' varInit {
         $$ = $1;
-        Variable *var = new Variable( *($3.pstr), new VarType( *($3.pstr), $3.depth, 
+        Variable *var = new Variable( *($3.pstr), new VarType( $1->getName(), $3.depth, 
             dynamic_cast<VarType*>($1)->getCompoundLevel(), $3.width, new SymbolTable( 1, $1 ) ) );
         if( var->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
             Log::VariableRedefinitionError( $3.pstr );
@@ -407,10 +410,14 @@ expr:			// undone
         $$ = $1;
     }
     | expr '[' expr ']'
-    | '*' expr %prec DEREF
+    | '*' expr %prec DEREF {
+		
+	}
     | expr ARROW expr
     | expr '.' expr
-    | '(' expr ')'
+    | '(' expr ')' {
+		$$ = $2;
+	}
     // left value expression
     | expr '=' expr
     | expr ADDASS expr
@@ -423,16 +430,28 @@ expr:			// undone
     | expr ORASS expr
     | expr SHLASS expr
     | expr SHRASS expr
-    | INC expr
-    | DEC expr
+    | INC expr {
+		
+	}
+    | DEC expr {
+		
+	}
     // right value expression
     | CONSTANT {
         $$ = $1;
     }
-    | SIZEOF expr
-    | SIZEOF '(' varType ')'
-    | funcCall
-    | '&' expr %prec ADDROF
+    | SIZEOF expr {
+		
+	}
+    | SIZEOF '(' varType ')' {
+		
+	}
+    | funcCall {
+		
+	}
+    | '&' expr %prec ADDROF {
+		
+	}
     | expr '?' expr ':' expr
     | expr ',' expr
     | expr OR expr
@@ -450,28 +469,36 @@ expr:			// undone
     | expr SHR expr
     | expr '+' expr {
         if( Variable::isCompatConv( $1, $3 ) == true ) {
-            $$.type = $3.type;
-            $$.mutablity = RVALUE;
-            
+			$$.name = CodeGenerator::cg->emitExpression( "ADD", $3, $1 );
+			$$.pvar = new Variable( *($$.name), new VarType( $3.pvar->getType() ) );
         } else if ( Variable::isCompatConv( $3, $1 ) == true ) {
-            $$.type = $1.type;
-            $$.mutablity = RVALUE;
-
+			$$.name = CodeGenerator::cg->emitExpression( "ADD", $1, $3 );
+			$$.pvar = new Variable( *($$.name), new VarType( $1.pvar->getType() ) );
         } else {
             Log::IncompatibleTypeError();
             YYABORT;
         }
+        $$.type = VarType::ExprType::VAR;
+        $$.mutablity = Variable::Mutablity::RVALUE;
     }
     | expr '-' expr
     | expr '*' expr
     | expr '/' expr
     | expr '%' expr
-    | '!' expr
-    | '~' expr
+    | '!' expr {
+		
+	}
+    | '~' expr {
+		
+	}
     | expr INC
     | expr DEC
-    | '+' expr %prec POS
-    | '-' expr %prec NEG
+    | '+' expr %prec POS {
+		
+	}
+    | '-' expr %prec NEG {
+		
+	}
     ;
 
 

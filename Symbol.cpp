@@ -17,6 +17,12 @@ Symbol::~Symbol() {
 vector<VarType*> VarType::stack;
 vector<VarType*> VarType::atomTypes;
 
+VarType::VarType( const VarType& vt ) : Symbol(vt.getName()), depth(vt.depth), compoundLevel(vt.compoundLevel),
+    width(vt.width), memberList(vt.memberList), atomType(vt.atomType), size(vt.size) {
+
+}
+
+
 VarType::VarType( const string &n, int d, CompoundLevel cl, vector<int> *w, SymbolTable *ml )
     : Symbol(n), depth(d), compoundLevel(cl), width(w), memberList(ml), atomType(AtomTypesIndex::USER_TYPE) {
     int factor = 1;
@@ -53,7 +59,7 @@ VarType::VarType( const string &n, int s, AtomTypesIndex a )
 }
 
 VarType::~VarType() {
-    delete width;
+    // delete width;
     // delete memberList;   // they will be defined types and be deleted later
     if( stack.size() != 0 && this == stack.back() ) {
         stack.pop_back();
@@ -131,15 +137,15 @@ VarType * VarType::find( const std::string &name ) {
 }
 
 void VarType::initAtomTypes() {
-    atomTypes.push_back( new VarType( "char", 1, AtomTypesIndex::CHAR ) );
-    atomTypes.push_back( new VarType( "int", WORD_LENGTH, AtomTypesIndex::INT ) );
-    atomTypes.push_back( new VarType( "long", WORD_LENGTH, AtomTypesIndex::LONG ) );
-    atomTypes.push_back( new VarType( "short", WORD_LENGTH/2, AtomTypesIndex::SHORT ) );
-    atomTypes.push_back( new VarType( "float", WORD_LENGTH, AtomTypesIndex::FLOAT ) );
-    atomTypes.push_back( new VarType( "double", WORD_LENGTH*2, AtomTypesIndex::DOUBLE ) );
-    atomTypes.push_back( new VarType( "signed", WORD_LENGTH, AtomTypesIndex::SIGNED ) );
-    atomTypes.push_back( new VarType( "unsigned", WORD_LENGTH, AtomTypesIndex::UNSIGNED ) );
-    atomTypes.push_back( new VarType( "void", 0, AtomTypesIndex::VOID ) );
+    atomTypes.push_back( new VarType( "c1", 1, AtomTypesIndex::CHAR ) );
+    atomTypes.push_back( new VarType( "i4", WORD_LENGTH, AtomTypesIndex::INT ) );
+    atomTypes.push_back( new VarType( "i4", WORD_LENGTH, AtomTypesIndex::LONG ) );
+    atomTypes.push_back( new VarType( "i2", WORD_LENGTH/2, AtomTypesIndex::SHORT ) );
+    atomTypes.push_back( new VarType( "f4", WORD_LENGTH, AtomTypesIndex::FLOAT ) );
+    atomTypes.push_back( new VarType( "f8", WORD_LENGTH*2, AtomTypesIndex::DOUBLE ) );
+    atomTypes.push_back( new VarType( "i4", WORD_LENGTH, AtomTypesIndex::SIGNED ) );
+    atomTypes.push_back( new VarType( "u4", WORD_LENGTH, AtomTypesIndex::UNSIGNED ) );
+    atomTypes.push_back( new VarType( "v0", 0, AtomTypesIndex::VOID ) );
 }
 
 // class Variable
@@ -152,7 +158,7 @@ Variable::Variable( const string &n, VarType* t, Qualifier q )
 }
 
 Variable::~Variable() {
-    delete type;
+    // delete type;
     if( stack.size() != 0 && this == stack.back() ) {
         stack.pop_back();
     }
@@ -167,6 +173,7 @@ Variable * Variable::find( const std::string &name ) {
     return NULL;
 }
 
+// VAR的int+VAR的double不兼容？可能是yacc中对临时变量构造Variable的问题？
 bool Variable::isCompatConv( Expression s, Expression t ) {
     int pointerCount = 0;
     if( s.type == VarType::ExprType::VAR ) {
@@ -251,6 +258,15 @@ bool Variable::isEqual( const Symbol *symbol ) const {
         return false;
     }
 }
+
+std::string Variable::getTypeName() const {
+    return type->getName();
+}
+
+const VarType& Variable::getType() const {
+    return *type;
+}
+
 
 
 // class Function
