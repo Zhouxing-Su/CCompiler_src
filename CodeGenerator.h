@@ -4,6 +4,7 @@
 #include <string>
 
 #include "Symbol.h"
+#include "SymbolTable.h"
 
 class CodeGenerator
 {
@@ -12,8 +13,9 @@ public:
     //static const char type[3][3];
 
     // the result type will always be the same as the first operand
-    std::string* emitExpression( const char *op,
+    std::string* emitExpression( const char *op, int resultType,
         const Variable::Expression &a, const Variable::Expression &b );
+    std::string* emitInc( const char *op, Variable::Expression lvar );
 
     static CodeGenerator *cg;
 

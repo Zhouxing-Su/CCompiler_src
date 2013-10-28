@@ -343,7 +343,7 @@ argvList:		// done		// used in function definitions
 
 // -------------------------
 
-funcImplement:	// undone
+funcImplement:	// undone	// argument should be varDecl
     funcDef {
         Log::syntaxAnalasisLog("function implementation", -1);
     }
@@ -467,12 +467,12 @@ expr:			// undone
     | expr GE expr
     | expr SHL expr
     | expr SHR expr
-    | expr '+' expr {
+    | expr '+' expr {	// done
         if( Variable::isCompatConv( $1, $3 ) == true ) {
-			$$.name = CodeGenerator::cg->emitExpression( "ADD", $3, $1 );
+			$$.name = CodeGenerator::cg->emitExpression( "ADD", 1, $1, $3 );
 			$$.pvar = new Variable( *($$.name), new VarType( $3.pvar->getType() ) );
         } else if ( Variable::isCompatConv( $3, $1 ) == true ) {
-			$$.name = CodeGenerator::cg->emitExpression( "ADD", $1, $3 );
+			$$.name = CodeGenerator::cg->emitExpression( "ADD", 0, $1, $3 );
 			$$.pvar = new Variable( *($$.name), new VarType( $1.pvar->getType() ) );
         } else {
             Log::IncompatibleTypeError();
@@ -481,9 +481,48 @@ expr:			// undone
         $$.type = VarType::ExprType::VAR;
         $$.mutablity = Variable::Mutablity::RVALUE;
     }
-    | expr '-' expr
-    | expr '*' expr
-    | expr '/' expr
+    | expr '-' expr {	// done
+        if( Variable::isCompatConv( $1, $3 ) == true ) {
+			$$.name = CodeGenerator::cg->emitExpression( "SUB", 1, $1, $3 );
+			$$.pvar = new Variable( *($$.name), new VarType( $3.pvar->getType() ) );
+        } else if ( Variable::isCompatConv( $3, $1 ) == true ) {
+			$$.name = CodeGenerator::cg->emitExpression( "SUB", 0, $1, $3 );
+			$$.pvar = new Variable( *($$.name), new VarType( $1.pvar->getType() ) );
+        } else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+        }
+        $$.type = VarType::ExprType::VAR;
+        $$.mutablity = Variable::Mutablity::RVALUE;
+    }
+    | expr '*' expr {	// done
+        if( Variable::isCompatConv( $1, $3 ) == true ) {
+			$$.name = CodeGenerator::cg->emitExpression( "MUL", 1, $1, $3 );
+			$$.pvar = new Variable( *($$.name), new VarType( $3.pvar->getType() ) );
+        } else if ( Variable::isCompatConv( $3, $1 ) == true ) {
+			$$.name = CodeGenerator::cg->emitExpression( "MUL", 0, $1, $3 );
+			$$.pvar = new Variable( *($$.name), new VarType( $1.pvar->getType() ) );
+        } else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+        }
+        $$.type = VarType::ExprType::VAR;
+        $$.mutablity = Variable::Mutablity::RVALUE;
+    }
+    | expr '/' expr {	// done
+        if( Variable::isCompatConv( $1, $3 ) == true ) {
+			$$.name = CodeGenerator::cg->emitExpression( "DIV", 1, $1, $3 );
+			$$.pvar = new Variable( *($$.name), new VarType( $3.pvar->getType() ) );
+        } else if ( Variable::isCompatConv( $3, $1 ) == true ) {
+			$$.name = CodeGenerator::cg->emitExpression( "DIV", 0, $1, $3 );
+			$$.pvar = new Variable( *($$.name), new VarType( $1.pvar->getType() ) );
+        } else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+        }
+        $$.type = VarType::ExprType::VAR;
+        $$.mutablity = Variable::Mutablity::RVALUE;
+    }
     | expr '%' expr
     | '!' expr {
 		
@@ -491,8 +530,38 @@ expr:			// undone
     | '~' expr {
 		
 	}
-    | expr INC
-    | expr DEC
+    | expr INC {	// done
+		if( $1.mutablity == Variable::Mutablity::LVALUE ) {
+			$$.name = CodeGenerator::cg->emitInc( "INC", $1 );
+			if( $$.name != NULL ) {
+				$$.pvar = new Variable( *($$.name), new VarType( $1.pvar->getType() ) );
+			} else {
+				Log::IncompatibleTypeError();
+				YYABORT;
+			}
+		} else {
+			Log::AssignToRightValueError();
+            YYABORT;
+		}
+        $$.type = VarType::ExprType::VAR;
+        $$.mutablity = Variable::Mutablity::RVALUE;
+	}
+    | expr DEC {	// done
+		if( $1.mutablity == Variable::Mutablity::LVALUE ) {
+			$$.name = CodeGenerator::cg->emitInc( "DEC", $1 );
+			if( $$.name != NULL ) {
+				$$.pvar = new Variable( *($$.name), new VarType( $1.pvar->getType() ) );
+			} else {
+				Log::IncompatibleTypeError();
+				YYABORT;
+			}
+		} else {
+			Log::AssignToRightValueError();
+            YYABORT;
+		}
+        $$.type = VarType::ExprType::VAR;
+        $$.mutablity = Variable::Mutablity::RVALUE;
+	}
     | '+' expr %prec POS {
 		
 	}

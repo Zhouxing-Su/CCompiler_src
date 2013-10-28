@@ -90,7 +90,7 @@ bool VarType::isEqual( const Symbol *symbol ) const {
     }
 }
 
-VarType::CompoundLevel VarType::getCompoundLevel() {
+VarType::CompoundLevel VarType::getCompoundLevel() const {
     return compoundLevel;
 }
 
@@ -173,7 +173,6 @@ Variable * Variable::find( const std::string &name ) {
     return NULL;
 }
 
-// VAR的int+VAR的double不兼容？可能是yacc中对临时变量构造Variable的问题？
 bool Variable::isCompatConv( Expression s, Expression t ) {
     int pointerCount = 0;
     if( s.type == VarType::ExprType::VAR ) {

@@ -45,7 +45,12 @@ public:
     }
 
     static void IncompatibleTypeError() {
-        fprintf( stderr, "Error: the expression has incompatible operands (%s[line %d])\n", 
+        fprintf( stderr, "Error: the operation is incompatible with the operands (%s[line %d])\n", 
+            FileWraper::getPath(), LineCount );
+    }
+
+    static void AssignToRightValueError() {
+        fprintf( stderr, "Error: can not assign to a right hand value (%s[line %d])\n", 
             FileWraper::getPath(), LineCount );
     }
 

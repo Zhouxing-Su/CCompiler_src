@@ -64,7 +64,7 @@ public:
     IDstate attach( SymbolTable *st ) const;
     // not like the function or variable, the same type does not need the same name
     bool isEqual( const Symbol *symbol ) const; // so the names won't be checked
-    CompoundLevel getCompoundLevel();
+    CompoundLevel getCompoundLevel() const;
     SymbolTable *getMemberList();
     int getPointerDepth() const;
 
