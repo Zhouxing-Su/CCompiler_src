@@ -161,9 +161,9 @@ class Label : public Symbol // include start address of 'for', 'while', 'do-whil
 public:
     // constructor for loop structures, auto-generating names by current index of the Label::stack
     // because they don't have a name assigned by programmer like goto-label
-    Label( int addr );  
+    Label();  
     // constructor for goto-label
-    Label( const std::string &name, int addr );
+    Label( const std::string &name );
     ~Label();
 
     IDstate attach( SymbolTable *st ) const;
@@ -172,6 +172,7 @@ public:
     static std::vector<Label*> stack;    // store all labels ( in current scope & cannot be global )
 
 private:
+    static const std::string userLabelPrefix;
     static const std::string autoNamePrefix;
     static std::string autoName;    // used in constructor 'Label( int addr )'
     static int loopCount;

@@ -57,6 +57,7 @@ do not support type modifiers such as "const" .
 %type <symbol> varDef
 %type <name> varInit
 %type <symbol> varType
+%type <symbol> ifCond
 
 // -------------------------
 %token <pstr> ID
@@ -74,7 +75,6 @@ do not support type modifiers such as "const" .
 
 // -------------------------
 
-%right IFX KW_ELSE
 %left	','
 %right	'=' ADDASS SUBASS MULASS DIVASS MODASS ANDASS XORASS ORASS SHLASS SHRASS
 %right	'?' ':'
@@ -90,6 +90,7 @@ do not support type modifiers such as "const" .
 %left	'*' '/' '%'
 %right	'!' '~' INC DEC POS NEG DEREF ADDROF SIZEOF		// '!' '~' "++" "--" '+' '-' '*' '&' "sizeof" //
 %left	ARROW '.'	'[' ']' '(' ')'	// "->"
+%nonassoc KW_ELSE
 
 %start program
 
@@ -395,7 +396,7 @@ stmt:			// undone
     }
     | ID ':'	/* label of "goto" */ {	
         log("lable of goto");
-        if( ( new Label( *$1, 0 ) )->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
+        if( ( new Label( *$1 ) )->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
             Log::ConflictLabelNameError( *$1 );
             YYABORT;
         }
@@ -419,11 +420,61 @@ expr:			// undone
 		$$ = $2;
 	}
     // left value expression
-    | expr '=' expr
-    | expr ADDASS expr
-    | expr SUBASS expr
-    | expr MULASS expr
-    | expr DIVASS expr
+    | expr '=' expr {	// done
+		if( $1.mutablity == Variable::Mutablity::LVALUE
+			&& (Variable::isCompatConv( $1, $3 ) == true 
+				|| Variable::isCompatConv( $3, $1 ) == true) ) {
+			CodeGenerator::cg->emitMove( $1, $3 );
+			$$ = $1;
+		} else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+		}
+	}
+    | expr ADDASS expr {	// done
+		if( $1.mutablity == Variable::Mutablity::LVALUE
+			&& (Variable::isCompatConv( $1, $3 ) == true 
+				|| Variable::isCompatConv( $3, $1 ) == true) ) {
+			CodeGenerator::cg->emitAssignment( "ADD", $1, $3 );
+			$$ = $1;
+		} else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+		}
+	}
+    | expr SUBASS expr {	// done
+		if( $1.mutablity == Variable::Mutablity::LVALUE
+			&& (Variable::isCompatConv( $1, $3 ) == true 
+				|| Variable::isCompatConv( $3, $1 ) == true) ) {
+			CodeGenerator::cg->emitAssignment( "SUB", $1, $3 );
+			$$ = $1;
+		} else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+		}
+	}
+    | expr MULASS expr {	// done
+		if( $1.mutablity == Variable::Mutablity::LVALUE
+			&& (Variable::isCompatConv( $1, $3 ) == true 
+				|| Variable::isCompatConv( $3, $1 ) == true) ) {
+			CodeGenerator::cg->emitAssignment( "MUL", $1, $3 );
+			$$ = $1;
+		} else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+		}
+	}
+    | expr DIVASS expr {	// done
+		if( $1.mutablity == Variable::Mutablity::LVALUE
+			&& (Variable::isCompatConv( $1, $3 ) == true 
+				|| Variable::isCompatConv( $3, $1 ) == true) ) {
+			CodeGenerator::cg->emitAssignment( "DIV", $1, $3 );
+			$$ = $1;
+		} else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+		}
+	}
     | expr MODASS expr
     | expr ANDASS expr
     | expr XORASS expr
@@ -454,25 +505,89 @@ expr:			// undone
 	}
     | expr '?' expr ':' expr
     | expr ',' expr
-    | expr OR expr
-    | expr AND expr
+    | expr OR expr {	// undone
+		
+	}
+    | expr AND expr {	// undone
+		
+	}
     | expr '|' expr
     | expr '^' expr
     | expr '&' expr
-    | expr EQ expr
-    | expr NEQ expr
-    | expr '<' expr
-    | expr LE expr
-    | expr '>' expr
-    | expr GE expr
+    | expr EQ expr {	// done
+		if( Variable::isCompatConv( $1, $3 ) == true || Variable::isCompatConv( $3, $1 ) == true ) {
+			$$.name = CodeGenerator::cg->emitExpression( "EQ", CodeGenerator::ResultTypeSwitch::BOOL_VALUE, $1, $3 );
+			$$.pvar = new Variable( *($$.name), VarType::atomTypes[VarType::AtomTypesIndex::INT] );
+        } else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+        }
+        $$.type = VarType::ExprType::VAR;
+        $$.mutablity = Variable::Mutablity::RVALUE;
+	}
+    | expr NEQ expr {	// done
+		if( Variable::isCompatConv( $1, $3 ) == true || Variable::isCompatConv( $3, $1 ) == true ) {
+			$$.name = CodeGenerator::cg->emitExpression( "NE", CodeGenerator::ResultTypeSwitch::BOOL_VALUE, $1, $3 );
+			$$.pvar = new Variable( *($$.name), VarType::atomTypes[VarType::AtomTypesIndex::INT] );
+        } else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+        }
+        $$.type = VarType::ExprType::VAR;
+        $$.mutablity = Variable::Mutablity::RVALUE;
+	}
+    | expr '<' expr {	// done
+		if( Variable::isCompatConv( $1, $3 ) == true || Variable::isCompatConv( $3, $1 ) == true ) {
+			$$.name = CodeGenerator::cg->emitExpression( "LT", CodeGenerator::ResultTypeSwitch::BOOL_VALUE, $1, $3 );
+			$$.pvar = new Variable( *($$.name), VarType::atomTypes[VarType::AtomTypesIndex::INT] );
+        } else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+        }
+        $$.type = VarType::ExprType::VAR;
+        $$.mutablity = Variable::Mutablity::RVALUE;
+	}
+    | expr LE expr {	// done
+		if( Variable::isCompatConv( $1, $3 ) == true || Variable::isCompatConv( $3, $1 ) == true ) {
+			$$.name = CodeGenerator::cg->emitExpression( "LE", CodeGenerator::ResultTypeSwitch::BOOL_VALUE, $1, $3 );
+			$$.pvar = new Variable( *($$.name), VarType::atomTypes[VarType::AtomTypesIndex::INT] );
+        } else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+        }
+        $$.type = VarType::ExprType::VAR;
+        $$.mutablity = Variable::Mutablity::RVALUE;
+	}
+    | expr '>' expr {	// done
+		if( Variable::isCompatConv( $1, $3 ) == true || Variable::isCompatConv( $3, $1 ) == true ) {
+			$$.name = CodeGenerator::cg->emitExpression( "GT", CodeGenerator::ResultTypeSwitch::BOOL_VALUE, $1, $3 );
+			$$.pvar = new Variable( *($$.name), VarType::atomTypes[VarType::AtomTypesIndex::INT] );
+        } else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+        }
+        $$.type = VarType::ExprType::VAR;
+        $$.mutablity = Variable::Mutablity::RVALUE;
+	}
+    | expr GE expr {	// done
+		if( Variable::isCompatConv( $1, $3 ) == true || Variable::isCompatConv( $3, $1 ) == true ) {
+			$$.name = CodeGenerator::cg->emitExpression( "GE", CodeGenerator::ResultTypeSwitch::BOOL_VALUE, $1, $3 );
+			$$.pvar = new Variable( *($$.name), VarType::atomTypes[VarType::AtomTypesIndex::INT] );
+        } else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+        }
+        $$.type = VarType::ExprType::VAR;
+        $$.mutablity = Variable::Mutablity::RVALUE;
+	}
     | expr SHL expr
     | expr SHR expr
     | expr '+' expr {	// done
         if( Variable::isCompatConv( $1, $3 ) == true ) {
-			$$.name = CodeGenerator::cg->emitExpression( "ADD", 1, $1, $3 );
+			$$.name = CodeGenerator::cg->emitExpression( "ADD", CodeGenerator::ResultTypeSwitch::SAME_AS_SECOND_OPRAND, $1, $3 );
 			$$.pvar = new Variable( *($$.name), new VarType( $3.pvar->getType() ) );
         } else if ( Variable::isCompatConv( $3, $1 ) == true ) {
-			$$.name = CodeGenerator::cg->emitExpression( "ADD", 0, $1, $3 );
+			$$.name = CodeGenerator::cg->emitExpression( "ADD", CodeGenerator::ResultTypeSwitch::SAME_AS_FIRST_OPRAND, $1, $3 );
 			$$.pvar = new Variable( *($$.name), new VarType( $1.pvar->getType() ) );
         } else {
             Log::IncompatibleTypeError();
@@ -483,10 +598,10 @@ expr:			// undone
     }
     | expr '-' expr {	// done
         if( Variable::isCompatConv( $1, $3 ) == true ) {
-			$$.name = CodeGenerator::cg->emitExpression( "SUB", 1, $1, $3 );
+			$$.name = CodeGenerator::cg->emitExpression( "SUB", CodeGenerator::ResultTypeSwitch::SAME_AS_SECOND_OPRAND, $1, $3 );
 			$$.pvar = new Variable( *($$.name), new VarType( $3.pvar->getType() ) );
         } else if ( Variable::isCompatConv( $3, $1 ) == true ) {
-			$$.name = CodeGenerator::cg->emitExpression( "SUB", 0, $1, $3 );
+			$$.name = CodeGenerator::cg->emitExpression( "SUB", CodeGenerator::ResultTypeSwitch::SAME_AS_FIRST_OPRAND, $1, $3 );
 			$$.pvar = new Variable( *($$.name), new VarType( $1.pvar->getType() ) );
         } else {
             Log::IncompatibleTypeError();
@@ -497,10 +612,10 @@ expr:			// undone
     }
     | expr '*' expr {	// done
         if( Variable::isCompatConv( $1, $3 ) == true ) {
-			$$.name = CodeGenerator::cg->emitExpression( "MUL", 1, $1, $3 );
+			$$.name = CodeGenerator::cg->emitExpression( "MUL", CodeGenerator::ResultTypeSwitch::SAME_AS_SECOND_OPRAND, $1, $3 );
 			$$.pvar = new Variable( *($$.name), new VarType( $3.pvar->getType() ) );
         } else if ( Variable::isCompatConv( $3, $1 ) == true ) {
-			$$.name = CodeGenerator::cg->emitExpression( "MUL", 0, $1, $3 );
+			$$.name = CodeGenerator::cg->emitExpression( "MUL", CodeGenerator::ResultTypeSwitch::SAME_AS_FIRST_OPRAND, $1, $3 );
 			$$.pvar = new Variable( *($$.name), new VarType( $1.pvar->getType() ) );
         } else {
             Log::IncompatibleTypeError();
@@ -511,10 +626,10 @@ expr:			// undone
     }
     | expr '/' expr {	// done
         if( Variable::isCompatConv( $1, $3 ) == true ) {
-			$$.name = CodeGenerator::cg->emitExpression( "DIV", 1, $1, $3 );
+			$$.name = CodeGenerator::cg->emitExpression( "DIV", CodeGenerator::ResultTypeSwitch::SAME_AS_SECOND_OPRAND, $1, $3 );
 			$$.pvar = new Variable( *($$.name), new VarType( $3.pvar->getType() ) );
         } else if ( Variable::isCompatConv( $3, $1 ) == true ) {
-			$$.name = CodeGenerator::cg->emitExpression( "DIV", 0, $1, $3 );
+			$$.name = CodeGenerator::cg->emitExpression( "DIV", CodeGenerator::ResultTypeSwitch::SAME_AS_FIRST_OPRAND, $1, $3 );
 			$$.pvar = new Variable( *($$.name), new VarType( $1.pvar->getType() ) );
         } else {
             Log::IncompatibleTypeError();
@@ -523,7 +638,9 @@ expr:			// undone
         $$.type = VarType::ExprType::VAR;
         $$.mutablity = Variable::Mutablity::RVALUE;
     }
-    | expr '%' expr
+    | expr '%' expr {	// undone
+		// the two operands should both be integer value
+	}
     | '!' expr {
 		
 	}
@@ -579,15 +696,33 @@ funcCall:		// undone
     }
     ;
 
+ifCond:
+	KW_IF '(' expr {
+		log("if clause");
+		$$ = new Label();
+		CodeGenerator::cg->emitBranch( "JCF", $$->getName().c_str(), $3 );
+	}
+	;
+
 if:				// undone
-      KW_IF '(' expr ')' stmt KW_ELSE stmt	{	log("if-else clause");	} 
-    | KW_IF '(' expr ')' stmt %prec IFX {	log("if clause");	} 
+    ifCond ')' stmt KW_ELSE {
+	  		log("else clause");
+			$<symbol>3 = new Label();
+			CodeGenerator::cg->emitJump( $<symbol>3->getName().c_str() );
+			CodeGenerator::cg->emitLabel( $1->getName().c_str() );
+		}
+		stmt {
+			CodeGenerator::cg->emitLabel( $<symbol>3->getName().c_str() );
+		} 
+    | ifCond ')' stmt {
+		CodeGenerator::cg->emitLabel( $1->getName().c_str() );
+	} 
     ;
     
 while:			// undone
     KW_WHILE {
             log("while clause");
-            Label *pl = new Label( 0 );
+            Label *pl = new Label();
             if( pl->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
                 Log::ConflictLabelNameError( pl->getName() );
                 YYABORT;
@@ -601,7 +736,7 @@ while:			// undone
 dowhile:		// undone
     KW_DO {
             log("do-while clause");
-            Label *pl = new Label( 0 );
+            Label *pl = new Label();
             if( pl->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
                 Log::ConflictLabelNameError( pl->getName() );
                 YYABORT;
@@ -613,7 +748,7 @@ dowhile:		// undone
 for:			// undone
     KW_FOR '(' forExpr ';' {
             log("for clause");
-            Label *pl = new Label( 0 );
+            Label *pl = new Label();
             if( pl->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
                 Log::ConflictLabelNameError( pl->getName() );
                 YYABORT;

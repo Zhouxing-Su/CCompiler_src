@@ -331,19 +331,20 @@ Function * Function::find( const std::string &name ) {
 // class Label
 
 vector<Label*> Label::stack;
-const std::string Label::autoNamePrefix("CC_AUTO_GEN_LABEL");
-string Label::autoName("CC_AUTO_GEN_LABEL0");
+const std::string Label::userLabelPrefix("U_");
+const std::string Label::autoNamePrefix("AUTO_LABEL");
+string Label::autoName("AUTO_LABEL0");
 int Label::loopCount(0);
 
-Label::Label( int a ) : Symbol( autoName ), addr(a) {
+Label::Label() : Symbol( autoName ) {
     // prepare next label name for loop structure
-    stringstream ss( autoNamePrefix );
-    ss << ++loopCount;
+    stringstream ss;
+    ss << autoNamePrefix << ++loopCount;
     autoName = ss.str();
 }
 
 
-Label::Label( const string &n, int a ) : Symbol(n), addr(a) {
+Label::Label( const string &n ) : Symbol(userLabelPrefix+n) {
 
 }
 
