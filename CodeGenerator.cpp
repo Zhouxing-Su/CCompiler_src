@@ -17,6 +17,39 @@ CodeGenerator::~CodeGenerator() {
     fclose( pfimp );
 }
 
+char* CodeGenerator::getFullName( const Variable::Expression e, char *fullName ) {
+    switch( e.type ) {
+    case VarType::ExprType::CHARACTER:
+        sprintf( fullName, "#%d:c1", e.value.c );
+        break;
+    case VarType::ExprType::INTEGER:
+        sprintf( fullName, "#%d:i4", e.value.i );
+        break;
+    case VarType::ExprType::U_INTEGER:
+        sprintf( fullName, "#%u:u4", e.value.u );
+        break;
+    case VarType::ExprType::REAL:
+        sprintf( fullName, "#%lf:f8", e.value.d );
+        break;
+    case VarType::ExprType::STRING:     // can not be reached
+        sprintf( fullName, "#%s:s%d", e.value.s->c_str(), e.value.s->size() );
+        break;
+    case VarType::ExprType::VAR:
+        sprintf( fullName, "%%%s:%s", e.pvar->getName().c_str(), e.pvar->getTypeName().c_str() );
+        break;
+    default:
+        ;
+    }
+    return fullName;
+}
+
+
+
+void CodeGenerator::emitBlock( char block )
+{
+    fprintf( pfimp, "%c\n", block );
+}
+
 std::string* CodeGenerator::emitExpression( const char *op, ResultTypeSwitch resultType,
         const Variable::Expression &a, const Variable::Expression &b ) {
     char result[Symbol::MaxNameLen];
@@ -113,11 +146,9 @@ std::string* CodeGenerator::emitExpression( const char *op, ResultTypeSwitch res
     }
 
     fprintf( pfimp, "%s %s, %s, %s\n", op, result, e1, e2 );
-    return new std::string(resultName);
+    return new string(resultName);
 }
 
-// "i++" is:    MOV t1, i    ;
-//              INC i        ; resultName = t1
 std::string* CodeGenerator::emitInc( const char *op, Variable::Expression lvar ) {
     char result[Symbol::MaxNameLen];
     char resultName[Symbol::MaxNameLen];
@@ -180,31 +211,24 @@ void CodeGenerator::emitLabel( const char* labelName ) {
     fprintf( pfimp, "%s:\n", labelName );
 }
 
+std::string* CodeGenerator::emitAndOr( LogicOperation lop, const Variable::Expression &a, const Variable::Expression &b ) {
+    char jop[2][4] = { "JCF", "JTF" };
+    char result[Symbol::MaxNameLen];
+    char resultName[Symbol::MaxNameLen];
+    char e1[Symbol::MaxNameLen];
+    char e2[Symbol::MaxNameLen];
+    
+    sprintf( resultName, "@t%d", tempVarCount++ );
+    sprintf( result, "%%%s:i4", resultName );
 
+    getFullName( a, e1 );
+    getFullName( b, e2 );
+    
+    fprintf( pfimp, "NEQ %s, %s, #0:i4\n", result, e1 );
+    Label label;
+    fprintf( pfimp, "%s %s, %s\n", jop[lop], label.getName().c_str(), result );
+    fprintf( pfimp, "NEQ %s, %s, #0:i4\n", result, e2 );
+    emitLabel( label.getName().c_str() );
 
-
-char* CodeGenerator::getFullName( const Variable::Expression e, char *fullName ) {
-    switch( e.type ) {
-    case VarType::ExprType::CHARACTER:
-        sprintf( fullName, "#%d:c1", e.value.c );
-        break;
-    case VarType::ExprType::INTEGER:
-        sprintf( fullName, "#%d:i4", e.value.i );
-        break;
-    case VarType::ExprType::U_INTEGER:
-        sprintf( fullName, "#%u:u4", e.value.u );
-        break;
-    case VarType::ExprType::REAL:
-        sprintf( fullName, "#%lf:f8", e.value.d );
-        break;
-    case VarType::ExprType::STRING:     // can not be reached
-        sprintf( fullName, "#%s:s%d", e.value.s->c_str(), e.value.s->size() );
-        break;
-    case VarType::ExprType::VAR:
-        sprintf( fullName, "%%%s:%s", e.pvar->getName().c_str(), e.pvar->getTypeName().c_str() );
-        break;
-    default:
-        ;
-    }
-    return fullName;
+    return new string(resultName);
 }

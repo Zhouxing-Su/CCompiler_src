@@ -39,6 +39,7 @@ do not support type modifiers such as "const" .
         int depth;
         std::vector<int> *width;
         std::string *pstr;
+		Variable::Expression initExpr;
     } name;
     Variable::Expression expr;
 };
@@ -211,27 +212,57 @@ varDef:			// done
         if( var->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
             Log::VariableRedefinitionError( $2.pstr );
             YYABORT;
-        }
+        } else if( ( $3.type != VarType::ExprType::VAR ) || ( $3.initExpr.pvar != NULL ) ) {
+			Variable::Expression expr;
+			expr.name = NULL;
+			expr.type = VarType::ExprType::VAR;
+			expr.mutablity = Variable::Mutablity::LVALUE;
+			expr.pvar = var;
+            if( (Variable::isCompatConv( expr, $2.initExpr ) == true 
+				|| Variable::isCompatConv( $2.initExpr, expr ) == true) ) {
+				CodeGenerator::cg->emitMove( expr, $2.initExpr );
+			} else {
+				Log::IncompatibleTypeError();
+				YYABORT;
+			}
+		}
     }
     | varDef ',' varInit {
         $$ = $1;
         Variable *var = new Variable( *($3.pstr), new VarType( $1->getName(), $3.depth, 
             dynamic_cast<VarType*>($1)->getCompoundLevel(), $3.width, new SymbolTable( 1, $1 ) ) );
         if( var->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
-            Log::VariableRedefinitionError( $3.pstr );
+			Log::VariableRedefinitionError( $3.pstr );
             YYABORT;
-        }
+        } else if( ( $3.type != VarType::ExprType::VAR ) || ( $3.initExpr.pvar != NULL ) ) {
+			Variable::Expression expr;
+			expr.name = NULL;
+			expr.type = VarType::ExprType::VAR;
+			expr.mutablity = Variable::Mutablity::LVALUE;
+			expr.pvar = var;
+            if( (Variable::isCompatConv( expr, $3.initExpr ) == true 
+				|| Variable::isCompatConv( $3.initExpr, expr ) == true) ) {
+				CodeGenerator::cg->emitMove( expr, $3.initExpr );
+			} else {
+				Log::IncompatibleTypeError();
+				YYABORT;
+			}
+		}
     }
     ;
-varInit:		// undone
+varInit:		// ?done
     name {
-        $$ = $1;
+        $$ = $1;	// use (type == VAR) but (pvar == NULL) to indicate there is no initialization
+		$$.type = VarType::ExprType::VAR;
+		$$.initExpr.pvar = NULL;
     }
     | name '=' expr {
         $$ = $1;
+		$$.initExpr = $3;
     }
-    | name '=' '{' expr '}' {
-        $$ = $1;
+    | name '=' '{' expr '}' {	//? it is different from the comma expression
+        $$.name = $1;
+		$$.initExpr = $3;
     }
     ;
 varType:		// done
@@ -356,9 +387,11 @@ funcImplement:	// undone	// argument should be varDecl
 block:			// undone
     '{' {
             SymbolTable::enterNewScope();
+			CodeGenerator::cg->emitBlock('{');
         }
         stmts '}' {
             SymbolTable::exitCurrentScope();
+			CodeGenerator::cg->emitBlock('}');
         }
     ;
 
@@ -420,7 +453,7 @@ expr:			// undone
 		$$ = $2;
 	}
     // left value expression
-    | expr '=' expr {	// done
+    | expr '=' expr {		// done
 		if( $1.mutablity == Variable::Mutablity::LVALUE
 			&& (Variable::isCompatConv( $1, $3 ) == true 
 				|| Variable::isCompatConv( $3, $1 ) == true) ) {
@@ -505,11 +538,27 @@ expr:			// undone
 	}
     | expr '?' expr ':' expr
     | expr ',' expr
-    | expr OR expr {	// undone
-		
+    | expr OR expr {	// done
+		if( Variable::isCompatConv( $1, $3 ) == true || Variable::isCompatConv( $3, $1 ) == true ) {
+			$$.name = CodeGenerator::cg->emitAndOr( CodeGenerator::LogicOperation::OR, $1, $3 );
+			$$.pvar = new Variable( *($$.name), VarType::atomTypes[VarType::AtomTypesIndex::INT] );
+			$$.type = VarType::ExprType::VAR;
+			$$.mutablity = Variable::Mutablity::RVALUE;
+		} else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+        }
 	}
-    | expr AND expr {	// undone
-		
+    | expr AND expr {	// done
+		if( Variable::isCompatConv( $1, $3 ) == true || Variable::isCompatConv( $3, $1 ) == true ) {
+			$$.name = CodeGenerator::cg->emitAndOr( CodeGenerator::LogicOperation::AND, $1, $3 );
+			$$.pvar = new Variable( *($$.name), VarType::atomTypes[VarType::AtomTypesIndex::INT] );
+			$$.type = VarType::ExprType::VAR;
+			$$.mutablity = Variable::Mutablity::RVALUE;
+		} else {
+            Log::IncompatibleTypeError();
+            YYABORT;
+        }
 	}
     | expr '|' expr
     | expr '^' expr
@@ -696,7 +745,7 @@ funcCall:		// undone
     }
     ;
 
-ifCond:
+ifCond:			// done
 	KW_IF '(' expr {
 		log("if clause");
 		$$ = new Label();
@@ -704,7 +753,7 @@ ifCond:
 	}
 	;
 
-if:				// undone
+if:				// done
     ifCond ')' stmt KW_ELSE {
 	  		log("else clause");
 			$<symbol>3 = new Label();
@@ -719,28 +768,26 @@ if:				// undone
 	} 
     ;
     
-while:			// undone
+while:			// done
     KW_WHILE {
             log("while clause");
-            Label *pl = new Label();
-            if( pl->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
-                Log::ConflictLabelNameError( pl->getName() );
-                YYABORT;
-            }
+            $<symbol>1 = new Label();	// while block start point
+            CodeGenerator::cg->emitLabel( $<symbol>1->getName().c_str() );
         }
-        '(' expr ')' stmt {
-            // set addr and attach all labels created in $5 to symbol table
+        '(' expr ')' {
+			$<symbol>3 = new Label();	// while block end point
+			CodeGenerator::cg->emitBranch( "JCF", $<symbol>3->getName().c_str(), $4 );
+		}
+		stmt {
+			CodeGenerator::cg->emitJump( $<symbol>1->getName().c_str() );
+            CodeGenerator::cg->emitLabel( $<symbol>3->getName().c_str() );
         }
     ;
 
 dowhile:		// undone
     KW_DO {
             log("do-while clause");
-            Label *pl = new Label();
-            if( pl->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
-                Log::ConflictLabelNameError( pl->getName() );
-                YYABORT;
-            }
+            $<symbol>1 = new Label();
         }
         stmt KW_WHILE '(' expr ')' ';'	 
     ;
@@ -748,11 +795,7 @@ dowhile:		// undone
 for:			// undone
     KW_FOR '(' forExpr ';' {
             log("for clause");
-            Label *pl = new Label();
-            if( pl->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
-                Log::ConflictLabelNameError( pl->getName() );
-                YYABORT;
-            }
+            $<symbol>1 = new Label();
         }
         forExpr ';' forExpr ')' stmt
     ;
