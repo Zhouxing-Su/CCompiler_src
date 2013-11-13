@@ -44,6 +44,7 @@ do not support type modifiers such as "const" .
     Variable::Expression expr;
 };
 
+
 %type <pst> argvList
 %type <symbol> atomType
 %type <width> bracket
@@ -212,7 +213,7 @@ varDef:			// done
         if( var->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
             Log::VariableRedefinitionError( $2.pstr );
             YYABORT;
-        } else if( ( $3.type != VarType::ExprType::VAR ) || ( $3.initExpr.pvar != NULL ) ) {
+        } else if( ( $2.initExpr.type != VarType::ExprType::VAR ) || ( $2.initExpr.pvar != NULL ) ) {
 			Variable::Expression expr;
 			expr.name = NULL;
 			expr.type = VarType::ExprType::VAR;
@@ -234,7 +235,7 @@ varDef:			// done
         if( var->attach( SymbolTable::getCurrentScope() ) == Symbol::IDstate::CONFLICT ) {
 			Log::VariableRedefinitionError( $3.pstr );
             YYABORT;
-        } else if( ( $3.type != VarType::ExprType::VAR ) || ( $3.initExpr.pvar != NULL ) ) {
+        } else if( ( $3.initExpr.type != VarType::ExprType::VAR ) || ( $3.initExpr.pvar != NULL ) ) {
 			Variable::Expression expr;
 			expr.name = NULL;
 			expr.type = VarType::ExprType::VAR;
@@ -253,7 +254,7 @@ varDef:			// done
 varInit:		// ?done
     name {
         $$ = $1;	// use (type == VAR) but (pvar == NULL) to indicate there is no initialization
-		$$.type = VarType::ExprType::VAR;
+		$$.initExpr.type = VarType::ExprType::VAR;
 		$$.initExpr.pvar = NULL;
     }
     | name '=' expr {
@@ -261,8 +262,8 @@ varInit:		// ?done
 		$$.initExpr = $3;
     }
     | name '=' '{' expr '}' {	//? it is different from the comma expression
-        $$.name = $1;
-		$$.initExpr = $3;
+        $$ = $1;
+		$$.initExpr = $4;
     }
     ;
 varType:		// done
@@ -746,11 +747,13 @@ funcCall:		// undone
     ;
 
 ifCond:			// done
-	KW_IF '(' expr {
-		log("if clause");
-		$$ = new Label();
-		CodeGenerator::cg->emitBranch( "JCF", $$->getName().c_str(), $3 );
-	}
+	KW_IF '(' {
+			CodeGenerator::cg->emitBlock('{');
+		} expr {
+			log("if clause");
+			$$ = new Label();
+			CodeGenerator::cg->emitBranch( "JCF", $$->getName().c_str(), $4 );
+		}
 	;
 
 if:				// done
@@ -762,9 +765,11 @@ if:				// done
 		}
 		stmt {
 			CodeGenerator::cg->emitLabel( $<symbol>3->getName().c_str() );
+			CodeGenerator::cg->emitBlock('}');
 		} 
     | ifCond ')' stmt {
 		CodeGenerator::cg->emitLabel( $1->getName().c_str() );
+		CodeGenerator::cg->emitBlock('}');
 	} 
     ;
     
@@ -772,6 +777,7 @@ while:			// done
     KW_WHILE {
             log("while clause");
             $<symbol>1 = new Label();	// while block start point
+			CodeGenerator::cg->emitBlock('{');
             CodeGenerator::cg->emitLabel( $<symbol>1->getName().c_str() );
         }
         '(' expr ')' {
@@ -781,23 +787,32 @@ while:			// done
 		stmt {
 			CodeGenerator::cg->emitJump( $<symbol>1->getName().c_str() );
             CodeGenerator::cg->emitLabel( $<symbol>3->getName().c_str() );
+			CodeGenerator::cg->emitBlock('}');
         }
     ;
 
 dowhile:		// undone
     KW_DO {
             log("do-while clause");
+			CodeGenerator::cg->emitBlock('{');
             $<symbol>1 = new Label();
+            CodeGenerator::cg->emitLabel( $<symbol>1->getName().c_str() );
         }
-        stmt KW_WHILE '(' expr ')' ';'	 
+        stmt KW_WHILE '(' expr ')' ';'	 {
+			CodeGenerator::cg->emitBlock('}');
+		}
     ;
 
 for:			// undone
-    KW_FOR '(' forExpr ';' {
+    KW_FOR {
+			CodeGenerator::cg->emitBlock('{');
+		} '(' forExpr ';' {
             log("for clause");
             $<symbol>1 = new Label();
         }
-        forExpr ';' forExpr ')' stmt
+        forExpr ';' forExpr ')' stmt {
+			CodeGenerator::cg->emitBlock('}');
+		}
     ;
 forExpr:		// undone
       expr
@@ -805,7 +820,13 @@ forExpr:		// undone
     ;
     
 switch:			// undone
-      KW_SWITCH '(' expr ')' {	log("switch clause");	}	'{' cases defaultCase '}'
+      KW_SWITCH {
+				CodeGenerator::cg->emitBlock('{');
+			} '(' expr ')' {
+				log("switch clause");
+			} '{' cases defaultCase '}' {
+				CodeGenerator::cg->emitBlock('}');
+			}
     ;
 cases:			// undone
       case

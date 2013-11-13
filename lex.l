@@ -11,7 +11,7 @@ letter		[_A-Za-z]
 octconst        (0)([0-7]+)
 hexconst        (0x)([a-fA-F0-9]+)
 intconst		{digit}+
-floatconst      {digit}*\.?{digit}*
+floatconst      ({digit}*"."{digit}+)|({digit}+"."{digit}*)
 stringconst     (\"([^"\\\n]|(\\(['"\?\\abfnrtv]|[0-7]{1,3}|x[a-fA-F0-9]+)))*\"[ \t\v\n\f]*)+
 charconst		"'"([^'\\\n]|(\\(['\"\?\\abfnrtv]|[0-7]{1,3}|x[a-fA-F0-9]+)))+"'"
 

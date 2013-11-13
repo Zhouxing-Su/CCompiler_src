@@ -5,18 +5,21 @@
 
 #include "Symbol.h"
 #include "SymbolTable.h"
+#include "Log.h"
 
 class CodeGenerator
 {
     friend int init( int argc, char **argv );
 public:
-    //static const char type[3][3];
     typedef enum ResultTypeSwitch { 
         SAME_AS_FIRST_OPRAND, SAME_AS_SECOND_OPRAND,
         BOOL_VALUE
     } ResultTypeSwitch;
-
     typedef enum LogicOperation { AND=0, OR=1 } LogicOperation;
+
+    const std::string folder;
+
+    void generateASM();
 
     void emitBlock( char block );
 
@@ -52,13 +55,14 @@ public:
     static CodeGenerator *cg;
 
 private:
-    CodeGenerator( const std::string &filename = "IR" );
+    CodeGenerator( const std::string &folder = "TestCase" );
     ~CodeGenerator();
 
     int tempVarCount;
 
     FILE *pfdef;    // pointer to the file storing the definitions of the Intermidiate Repressentation
-    FILE *pfimp;    // pointer to the file storing the implementations of the  Intermidiate Repressentation
+    FILE *pfimp;    // pointer to the file storing the implementations of the Intermidiate Repressentation
+    FILE *pfasm;    // pointer to the target asm file
 };
 
 #endif

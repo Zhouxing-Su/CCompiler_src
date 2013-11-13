@@ -2,19 +2,42 @@
 
 using namespace std;
 
-//const char CodeGenerator::type[3][3] = { "", "23", "" };
+int irparse(void);
+
 CodeGenerator* CodeGenerator::cg;
 
-CodeGenerator::CodeGenerator( const std::string &filename ) : tempVarCount(0) {
-    string fn( filename + "/IR.def" );
+CodeGenerator::CodeGenerator( const std::string &f ) : tempVarCount(0), folder(f) {
+    string fn( folder + "/IR.def" );
     pfdef = fopen( fn.c_str(), "w" );
-    fn = filename + "/IR.imp";
+    fn = folder + "/IR.imp";
     pfimp = fopen( fn.c_str(), "w" );
 }
 
 CodeGenerator::~CodeGenerator() {
     fclose( pfdef );
     fclose( pfimp );
+    fclose( pfasm );
+}
+
+
+void CodeGenerator::generateASM()
+{
+    // flush the buf
+    fclose( pfdef );
+    fclose( pfimp );
+
+    // handle the output asm file
+    string fn( folder + "/target.asm" );
+    pfasm = fopen( fn.c_str(), "w" );
+    
+    // handle the definition and implementation file
+    fn = folder + "/IR.def";
+    if ( NULL == freopen( fn.c_str(), "r", stdin ) ) {
+        Log::FileNotFoundError( fn.c_str() );
+        return;
+    }
+
+    irparse();
 }
 
 char* CodeGenerator::getFullName( const Variable::Expression e, char *fullName ) {
