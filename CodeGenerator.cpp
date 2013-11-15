@@ -6,6 +6,67 @@ int irparse(void);
 
 CodeGenerator* CodeGenerator::cg;
 
+// i8 and u8("EDX,EAX") can not be right 
+char const CodeGenerator::reg[typeNum][typeNum][8] = {
+    {"DL","EDX,EAX","EDX","DX","EDX,EAX","EDX","DX","ST","ST","-"},
+    {"EDX,EAX","EDX,EAX","EDX,EAX","EDX,EAX","EDX,EAX","EDX,EAX","EDX,EAX","ST","ST","-"},
+    {"EDX","EDX,EAX","EDX","EDX","EDX,EAX","EDX","EDX","ST","ST","-"},
+    {"DX","EDX,EAX","EDX","DX","EDX,EAX","EDX","DX","ST","ST","-"},
+    {"EDX,EAX","EDX,EAX","EDX,EAX","EDX,EAX","EDX,EAX","EDX,EAX","EDX,EAX","ST","ST","-"},
+    {"EDX","EDX,EAX","EDX","EDX","EDX,EAX","EDX","EDX","ST","ST","-"},
+    {"DX","EDX,EAX","EDX","DX","EDX,EAX","EDX","DX","ST","ST","-"},
+    {"ST","ST","ST","ST","ST","ST","ST","ST","ST","-"},
+    {"ST","ST","ST","ST","ST","ST","ST","ST","ST","-"},
+    {"-","-","-","-","-","-","-","-","-","ESI"}
+};
+char const CodeGenerator::read_a[typeNum][typeNum][8] = {
+    {"MOV","MOVSX","MOVSX","MOVSX","MOVSX","MOVSX","MOVSX","FILD","FILD","-"},
+    {"MOV","MOV","MOV","MOV","MOV","MOV","MOV","FILD","FILD","-"},
+    {"MOV","MOVSX","MOV","MOV","MOVSX","MOV","MOV","FILD","FILD","-"},
+    {"MOV","MOVSX","MOVSX","MOV","MOVSX","MOVSX","MOV","FILD","FILD","-"},
+    {"MOV","MOV","MOV","MOV","MOV","MOV","MOV","FILD","FILD","-"},
+    {"MOV","MOV","MOV","MOV","MOVSX","MOV","MOV","FILD","FILD","-"},
+    {"MOV","MOV","MOVSX","MOV","MOVSX","MOVSX","MOV","FILD","FILD","-"},
+    {"FLD","FLD","FLD","FLD","FLD","FLD","FLD","FLD","FLD","-"},
+    {"FLD","FLD","FLD","FLD","FLD","FLD","FLD","FLD","FLD","-"},
+    {"-","-","-","-","-","-","-","-","-","LEA"}
+
+};
+char const CodeGenerator::opPrefix[opTypeNum][typeNum][typeNum][8] = {
+    {   {"","","","","","","","F","F","-"},
+        {"","","","","","","","F","F","-"},
+        {"","","","","","","","F","F","-"},
+        {"","","","","","","","F","F","-"},
+        {"","","","","","","","F","F","-"},
+        {"","","","","","","","F","F","-"},
+        {"","","","","","","","F","F","-"},
+        {"FI","FI","FI","FI","FI","FI","FI","F","F","-"},
+        {"FI","FI","FI","FI","FI","FI","FI","F","F","-"},
+        {"-","-","-","-","-","-","-","-","-","-"}   },
+    {   {"","I","I","I","","","","F","F","-"},
+        {"I","I","I","I","","I","I","F","F","-"},
+        {"I","I","I","I","","","I","F","F","-"},
+        {"I","I","I","I","","","","F","F","-"},
+        {"","","","","","","","F","F","-"},
+        {"","I","","","","","","F","F","-"},
+        {"","I","I","","","","","F","F","-"},
+        {"FI","FI","FI","FI","FI","FI","FI","F","F","-"},
+        {"FI","FI","FI","FI","FI","FI","FI","F","F","-"},
+        {"-","-","-","-","-","-","-","-","-","-"}    }
+};
+char const CodeGenerator::write_r[typeNum][regTypeNum][32] = {
+    {"MOV %s,DL","MOV %s, DL","MOV %s, DL","MOV %s,AL","FISTP %s",""},
+    {"-","-","-","MOV %s+4, EDX\nMOV %s, EAX","FISTP %s","-"},
+    {"-","-","MOV %s, EDX","MOV %s, EAX","FISTP %s","-"},
+    {"-","MOV %s, DX","MOV %s, DX","MOV %s, AX","FISTP %s","-"},
+    {"-","-","-","MOV %s+4, EDX\nMOV %s, EAX","FISTP %s","-"},
+    {"-","-","MOV %s, EDX","MOV %s, EAX","FISTP %s","-"},
+    {"-","MOV %s, DX","MOV %s, DX","MOV %s, AX","FISTP %s","-"},
+    {"-","-","-","-","FSTP %s","-"},
+    {"-","-","-","-","FSTP %s","-"},
+    {"-","-","-","-","-","MOV %s,ESI"}
+};
+
 CodeGenerator::CodeGenerator( const std::string &f ) : tempVarCount(0), folder(f) {
     string fn( folder + "/IR.def" );
     pfdef = fopen( fn.c_str(), "w" );
@@ -39,6 +100,23 @@ void CodeGenerator::generateASM()
 
     irparse();
 }
+
+void CodeGenerator::emitLoad_a(MemTypeIndex rtype, MemTypeIndex atype, string *aName)
+{
+    fprintf( pfasm, "%s %s, %s\n", read_a[rtype][atype], reg[rtype][atype], aName->c_str() );
+}
+
+void CodeGenerator::emitOperation()
+{
+
+}
+
+void CodeGenerator::emitWrite_r(MemTypeIndex rtype, RegTypeIndex regtype, string *rName)
+{
+    fprintf( pfasm, write_r[rtype][regtype], rName->c_str() );
+    fputc( '\n', pfasm );
+}
+
 
 char* CodeGenerator::getFullName( const Variable::Expression e, char *fullName ) {
     switch( e.type ) {
@@ -247,10 +325,10 @@ std::string* CodeGenerator::emitAndOr( LogicOperation lop, const Variable::Expre
     getFullName( a, e1 );
     getFullName( b, e2 );
     
-    fprintf( pfimp, "NEQ %s, %s, #0:i4\n", result, e1 );
+    fprintf( pfimp, "NE %s, %s, #0:i4\n", result, e1 );
     Label label;
     fprintf( pfimp, "%s %s, %s\n", jop[lop], label.getName().c_str(), result );
-    fprintf( pfimp, "NEQ %s, %s, #0:i4\n", result, e2 );
+    fprintf( pfimp, "NE %s, %s, #0:i4\n", result, e2 );
     emitLabel( label.getName().c_str() );
 
     return new string(resultName);

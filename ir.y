@@ -3,6 +3,7 @@
 %{
     #include <cstdio>
     #include <string>
+	#include "CodeGenerator.h"
     #include "ir.tab.hpp"
     
     int irlex();
@@ -17,6 +18,11 @@
 
 %union {
     std::string *pstr;
+	struct {
+		std::string *pname;
+		CodeGenerator::MemTypeIndex mtype;
+		CodeGenerator::RegTypeIndex rtype;
+	} value;
 };
 
 // -------------------------
@@ -27,6 +33,10 @@
 %token LEA DREF CALL INVOKE RET JCT JCF JMP
 %token <pstr> C1 F8 F4 I8 I4 I2 U8 U4 U2 STR
 %token <pstr> USER_VAR TEMP_VAR CONSTANT ID
+
+%type <value> type
+%type <value> lvalue
+%type <value> rvalue
 
 // -------------------------
 %destructor {	delete $$;	} <ID>
@@ -55,51 +65,54 @@ block:
 
 type:
 	STR {
-
+		$$.mtype = CodeGenerator::MemTypeIndex::STR;
+		$$.rtype = CodeGenerator::RegTypeIndex::ESI;
+		$$.pname = NULL;
 	}
 	| C1 {
-		// DL
-		// ADD/...
+		$$.mtype = CodeGenerator::MemTypeIndex::C1;
+		$$.rtype = CodeGenerator::RegTypeIndex::DL;
+		$$.pname = NULL;
 	}
 	| I8 {
-		// EDX, EAX
-		// ADD/...
+		$$.mtype = CodeGenerator::MemTypeIndex::I8;
+		$$.rtype = CodeGenerator::RegTypeIndex::EDXEAX;
+		$$.pname = NULL;
 	}
 	| I4 {
-		// EDX
-		// ADD/...
+		$$.mtype = CodeGenerator::MemTypeIndex::I4;
+		$$.rtype = CodeGenerator::RegTypeIndex::EDX;
+		$$.pname = NULL;
 	}
 	| I2 {
-		// DX
-		// ADD/...
+		$$.mtype = CodeGenerator::MemTypeIndex::I2;
+		$$.rtype = CodeGenerator::RegTypeIndex::DX;
+		$$.pname = NULL;
 	}
 	| U8 {
-
+		$$.mtype = CodeGenerator::MemTypeIndex::U8;
+		$$.rtype = CodeGenerator::RegTypeIndex::EDXEAX;
+		$$.pname = NULL;
 	}
 	| U4 {
-
+		$$.mtype = CodeGenerator::MemTypeIndex::U4;
+		$$.rtype = CodeGenerator::RegTypeIndex::EDX;
+		$$.pname = NULL;
 	}
 	| U2 {
-
+		$$.mtype = CodeGenerator::MemTypeIndex::U2;
+		$$.rtype = CodeGenerator::RegTypeIndex::DL;
+		$$.pname = NULL;
 	}
 	| F8 {
-		// FLD ST(0)
-		// ST(0)
-		// FADD/FDIV/F...
+		$$.mtype = CodeGenerator::MemTypeIndex::F8;
+		$$.rtype = CodeGenerator::RegTypeIndex::ST;
+		$$.pname = NULL;
 	}
 	| F4 {
-		// FLD ST(0)
-		// ST(0)
-		// FADD/...
-	}
-	;
-
-var:
-	USER_VAR ':' type {
-
-	}
-	| TEMP_VAR {
-
+		$$.mtype = CodeGenerator::MemTypeIndex::F4;
+		$$.rtype = CodeGenerator::RegTypeIndex::ST;
+		$$.pname = NULL;
 	}
 	;
 
@@ -114,36 +127,51 @@ argList:
 
 rvalue:
 	lvalue {
-
+		$$ = $1;
 	}
 	| CONSTANT ':' type {
-
+		$$.pname = $1;
+		$$.mtype = $3.mtype;
+		$$.rtype = $3.rtype;
 	}
 	;
 
 lvalue:
-	var ':' type {
-
+	USER_VAR ':' type {
+		$$.pname = $1;
+		$$.mtype = $3.mtype;
+		$$.rtype = $3.rtype;
+	}
+	| TEMP_VAR ':' type {
+		$$.pname = $1;
+		$$.mtype = $3.mtype;
+		$$.rtype = $3.rtype;
 	}
 	;
 
 func:
-	ID
+	ID {
+
+	}
 	;
 
 label:
-	ID {
+	ID ':' {
 
 	}
 	;
 
 stmt:
 	block
+	| label
 	| MOV  lvalue ',' rvalue {
-
+		CodeGenerator::cg->emitLoad_a( $2.mtype, $4.mtype, $4.pname );
+		CodeGenerator::cg->emitWrite_r( $2.mtype, $2.rtype, $2.pname );
 	}
 	| ADD  lvalue ',' rvalue ',' rvalue {
-
+		CodeGenerator::cg->emitLoad_a( $2.mtype, $4.mtype, $4.pname );
+		CodeGenerator::cg->emitOperation();
+		CodeGenerator::cg->emitWrite_r( $2.mtype, (($4.rtype>$2.rtype)?($4.rtype):($2.rtype)), $2.pname );
 	}
 	| SUB  lvalue ',' rvalue ',' rvalue {
 
@@ -223,13 +251,13 @@ stmt:
 	| RET  rvalue {
 
 	}
-	| JCT  label ',' rvalue {
+	| JCT  ID ',' rvalue {
 
 	}
-	| JCF  label ',' rvalue {
+	| JCF  ID ',' rvalue {
 
 	}
-	| JMP  label {
+	| JMP  ID {
 
 	}
 	;
@@ -241,5 +269,5 @@ stmt:
 %%	// =================================
 
 void irerror(const char *msg) {
-    fprintf( stderr, "Error: %s [line %d]\n", msg, line);
+    fprintf( stderr, "irparse Error: %s [line %d]\n", msg, line);
 }

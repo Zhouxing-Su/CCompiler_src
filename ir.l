@@ -84,17 +84,17 @@ constant	"#"{number}
 
 
 {userVar}	{
-	irlval.pstr = new std::string(irtext);
+	irlval.pstr = new std::string(irtext+1);	// skip "%"
 	return USER_VAR;
 }
 
 {tempVar}	{
-	irlval.pstr = new std::string(irtext);
+	irlval.pstr = new std::string(irtext+2);	// skip "%@"
 	return TEMP_VAR;
 }
 
 {constant}	{
-	irlval.pstr = new std::string(irtext);
+	irlval.pstr = new std::string(irtext+1);	// skip "#"
 	return CONSTANT;
 }
 

@@ -1,0 +1,6 @@
+/lex.yy.cpp
+/yacc.tab.cpp
+/yacc.tab.hpp
+/ir.tab.cpp
+/ir.tab.hpp
+/lex.ir.cpp

@@ -17,9 +17,24 @@ public:
     } ResultTypeSwitch;
     typedef enum LogicOperation { AND=0, OR=1 } LogicOperation;
 
+    typedef enum MemTypeIndex { C1=0, I8, I4, I2, U8, U4, U2, F8, F4, STR } MemTypeIndex;
+    typedef enum RegTypeIndex { DL=0, DX, EDX, EDXEAX, ST, ESI } RegTypeIndex;
+
+    static const int typeNum = 10;
+    static const int regTypeNum = 6;
+    static const int opTypeNum = 2;
+    static char const reg[typeNum][typeNum][8];
+    static char const read_a[typeNum][typeNum][8];
+    static char const opPrefix[opTypeNum][typeNum][typeNum][8];
+    static char const write_r[typeNum][regTypeNum][32];
+
     const std::string folder;
 
     void generateASM();
+    void emitLoad_a(MemTypeIndex rtype, MemTypeIndex atype, std::string *aName);
+    void emitOperation();
+    void emitWrite_r(MemTypeIndex rtype, RegTypeIndex regtype, std::string *rName);
+
 
     void emitBlock( char block );
 
